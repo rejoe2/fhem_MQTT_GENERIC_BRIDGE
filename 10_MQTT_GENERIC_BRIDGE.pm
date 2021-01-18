@@ -661,8 +661,10 @@ sub refreshUserAttr {
 
 # liefert TYPE des IODev, wenn definiert (MQTT; MQTT2,..)
 sub retrieveIODev {
-  my $hash = shift;
+  my $hash = shift // return;
   my $iodn = AttrVal($hash->{NAME}, "IODev", undef);
+  return ($hash->{+HELPER}->{+IO_DEV_TYPE}, $iodn) if defined $hash->{+HELPER}->{+IO_DEV_TYPE};
+
   my $iodt = undef;
   if(defined($iodn) and defined($defs{$iodn})) {
     $iodt = $defs{$iodn}{TYPE};
@@ -673,11 +675,13 @@ sub retrieveIODev {
 
 # prueft, ob IODev MQTT-Instanz ist
 sub isIODevMQTT {
-  my $hash = shift;
-  my ($iodt, $iodn) = retrieveIODev($hash);
-  return 0 unless defined $iodt;
-  return 0 unless $iodt eq 'MQTT';
-  return 1;
+  my $hash = shift // return;
+  if (!defined $hash->{+HELPER}->{+IO_DEV_TYPE}) { 
+    my ($iodt, $iodn) = retrieveIODev($hash);
+    return 0 if (!defined $iodt || $iodt ne 'MQTT');
+  }
+  return 1 if $hash->{+HELPER}->{+IO_DEV_TYPE} eq 'MQTT';
+  return 0;
 }
 
 sub checkIODevMQTT2 {
@@ -695,7 +699,7 @@ sub checkIODevMQTT2_CLIENT {
 
 # prueft, ob IODev MQTT2-Instanz ist
 sub isIODevMQTT2 {
-  my $hash = shift;
+  my $hash = shift // return;
   my ($iodt, $iodn) = retrieveIODev($hash);
   return checkIODevMQTT2($iodt);
 }
@@ -2795,7 +2799,8 @@ sub Parse {
   my ($cid, $topic, $value) = split("\0", $msg, 3);
   
   my @instances = devspec2array("TYPE=MQTT_GENERIC_BRIDGE");
-  foreach my $dev (@instances) {
+  my @ret;
+  for my $dev (@instances) {
     my $hash = $defs{$dev};
     # Name mit IODev vegleichen
     my ($iiodt, $iiodn) = retrieveIODev($hash);
@@ -2813,14 +2818,14 @@ sub Parse {
     my $fret = onmessage($hash, $topic, $value);
     return "" unless defined $fret;
     if( ref($fret) eq 'ARRAY' ) {
-      my @ret=@{$fret};
-    unshift(@ret, "[NEXT]"); # damit weitere Geraetemodule ggf. aufgerufen werden
-    return @ret;
+      push @ret, $fret;
+    }
+    
+    #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE: [$hash->{NAME}] Parse ($iiodt : '$ioname'): internal error:  onmessage returned an unexpected value: ".$fret);
+    #return "";
   }
-    Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE: [$hash->{NAME}] Parse ($iiodt : '$ioname'): internal error:  onmessage returned an unexpected value: ".$fret);
-    return "";
-  }
-  return;
+  unshift(@ret, "[NEXT]"); # damit weitere Geraetemodule ggf. aufgerufen werden
+  return @ret;
 }
 
 # Routine MQTT-Message Callback
@@ -2829,14 +2834,17 @@ sub onmessage {
   #CheckInitialization($hash);
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] onmessage: $topic => $message");
 
-  $hash->{+HELPER}->{+HS_PROP_NAME_INCOMING_CNT}++; 
-  readingsSingleUpdate($hash,"incoming-count",$hash->{+HELPER}->{+HS_PROP_NAME_INCOMING_CNT},1);
-
   my $fMap = searchDeviceForTopic($hash, $topic);
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] onmessage: $fMap : ".Dumper($fMap));
+
+  if (isIODevMQTT($hash) || keys %{$fMap}) {
+    $hash->{+HELPER}->{+HS_PROP_NAME_INCOMING_CNT}++; 
+    readingsSingleUpdate($hash,"incoming-count",$hash->{+HELPER}->{+HS_PROP_NAME_INCOMING_CNT},1);
+  }
+
   my $updated = 0;
   my @updatedList;
-  for my $deviceKey (keys %{$fMap}) {
+  foreach my $deviceKey (keys %{$fMap}) {
         my $device = $fMap->{$deviceKey}->{'device'};
         my $reading = $fMap->{$deviceKey}->{'reading'};
         my $mode = $fMap->{$deviceKey}->{'mode'};
@@ -2907,8 +2915,8 @@ sub onmessage {
           #updateSubTime($device,$reading);
         #}
   }
-  return \@updatedList if($updated);
-  return;
+  return \@updatedList; #if($updated);
+  #return undef;
 }
 1;
 
