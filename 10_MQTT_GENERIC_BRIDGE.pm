@@ -2818,7 +2818,7 @@ sub Parse {
     my $fret = onmessage($hash, $topic, $value);
     return "" unless defined $fret;
     if( ref($fret) eq 'ARRAY' ) {
-      push @ret, $fret;
+      push @ret, @$fret;
     }
     
     #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE: [$hash->{NAME}] Parse ($iiodt : '$ioname'): internal error:  onmessage returned an unexpected value: ".$fret);
