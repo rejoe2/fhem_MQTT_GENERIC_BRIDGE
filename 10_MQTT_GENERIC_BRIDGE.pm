@@ -22,7 +22,7 @@
 #     You should have received a copy of the GNU General Public License
 #     along with fhem.  If not, see <http://www.gnu.org/licenses/>.
 #
-# $Id: 10_MQTT_GENERIC_BRIDGE.pm 23519 + cref + first PBP passthrought 2021-01-18 Beta-User $
+# $Id: 10_MQTT_GENERIC_BRIDGE.pm 23519 +attrTemplate ++ cref + first PBP passthrought 2021-01-19 Beta-User $
 #
 ###############################################################################
 
@@ -370,6 +370,7 @@
 
 use strict;
 use warnings;
+use AttrTemplate;
 
 #my $DEBUG = 1;
 my $cvsid = '$Id: 10_MQTT_GENERIC_BRIDGE.pm 23519 2021-01-13 21:54:36Z hexenmeister $';
@@ -405,6 +406,7 @@ sub MQTT_GENERIC_BRIDGE_Initialize($) {
   # Consumer
   $hash->{DefFn}    = "MQTT::GENERIC_BRIDGE::Define";
   $hash->{UndefFn}  = "MQTT::GENERIC_BRIDGE::Undefine";
+  $hash->{SetFn}    = "MQTT::GENERIC_BRIDGE::Set";
   $hash->{GetFn}    = "MQTT::GENERIC_BRIDGE::Get";
   $hash->{NotifyFn} = "MQTT::GENERIC_BRIDGE::Notify";
   $hash->{AttrFn}   = "MQTT::GENERIC_BRIDGE::Attr";
@@ -496,6 +498,7 @@ BEGIN {
     CTRL_ATTR_NAME_GLOBAL_TYPE_EXCLUDE
     CTRL_ATTR_NAME_GLOBAL_DEV_EXCLUDE
     CTRL_ATTR_NAME_GLOBAL_PREFIX
+    AttrTemplate_Set
   ))
 
 };
@@ -2049,6 +2052,10 @@ sub Get {
   return;
 }
 
+sub Set {
+  my ($hash, @args) = @_;
+  return AttrTemplate_Set($hash,'',@args);
+}
 # Routine fuer FHEM Notify
 sub Notify {
   my ($hash,$dev) = @_;
