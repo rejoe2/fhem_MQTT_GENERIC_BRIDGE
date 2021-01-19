@@ -22,7 +22,7 @@
 #     You should have received a copy of the GNU General Public License
 #     along with fhem.  If not, see <http://www.gnu.org/licenses/>.
 #
-# $Id: 10_MQTT_GENERIC_BRIDGE.pm 23519 +attrTemplate ++ cref + first PBP passthrought 2021-01-19 Beta-User $
+# $Id: 10_MQTT_GENERIC_BRIDGE.pm 23519 + cref + first PBP passthrought 2021-01-18 Beta-User $
 #
 ###############################################################################
 
