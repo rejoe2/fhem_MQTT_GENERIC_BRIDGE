@@ -2815,8 +2815,8 @@ sub Parse {
     # my @ret = onmessage($hash, $topic, $value);
     # unshift(@ret, "[NEXT]"); # damit weitere Geraetemodule ggf. aufgerufen werden
     # return @ret;
-    my $fret = onmessage($hash, $topic, $value);
-    return "" unless defined $fret;
+    my $fret = onmessage($hash, $topic, $value, 0);
+    #return "" unless defined $fret;
     if( ref($fret) eq 'ARRAY' ) {
       push @ret, @$fret;
     }
@@ -2830,14 +2830,17 @@ sub Parse {
 
 # Routine MQTT-Message Callback
 sub onmessage {
-  my ($hash,$topic,$message) = @_;
+  my $hash    = shift;
+  my $topic   = shift;
+  my $message = shift;
+  my $oldCall = shift // 1; # 1 if called by 00_MQTT.pm, 0 if called from MQTT2-Type IO
   #CheckInitialization($hash);
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] onmessage: $topic => $message");
 
   my $fMap = searchDeviceForTopic($hash, $topic);
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] onmessage: $fMap : ".Dumper($fMap));
 
-  if (isIODevMQTT($hash) || keys %{$fMap}) {
+  if ($oldCall || keys %{$fMap}) {
     $hash->{+HELPER}->{+HS_PROP_NAME_INCOMING_CNT}++; 
     readingsSingleUpdate($hash,"incoming-count",$hash->{+HELPER}->{+HS_PROP_NAME_INCOMING_CNT},1);
   }
@@ -2915,8 +2918,8 @@ sub onmessage {
           #updateSubTime($device,$reading);
         #}
   }
-  return \@updatedList; #if($updated);
-  #return undef;
+  return \@updatedList if !$oldCall; #if($updated);
+  return;
 }
 1;
 
