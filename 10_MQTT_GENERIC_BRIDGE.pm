@@ -1185,17 +1185,16 @@ sub getDevicePublishRecIntern($$$$$$$) {
   my $globalPublishMap = $globalMap->{':publish'};
 
   # reading map
-  my $readingMap = $publishMap->{$readingKey} if defined $publishMap;
-  my $wildcardReadingMap = $publishMap->{'*'} if defined $publishMap;
-  #my $defaultReadingMap = $devMap->{':defaults'} if defined $devMap;
+  my $readingMap = $publishMap->{$readingKey} // {};
+  my $wildcardReadingMap = $publishMap->{'*'} // {};
+  #my $defaultReadingMap = $devMap->{':defaults'} i f defined $devMap;
   
   # global reading map
   my $globalReadingMap = undef;
   if (defined $globalPublishMap) {
-    $globalReadingMap = $globalPublishMap->{$readingKey};
-    $globalReadingMap = $globalPublishMap->{$reading} unless defined $globalReadingMap;
+    $globalReadingMap = $globalPublishMap->{$readingKey} // $globalPublishMap->{$reading};
   }
-  my $globalWildcardReadingsMap = $globalPublishMap->{'*'} if defined $globalPublishMap;
+  my $globalWildcardReadingsMap = $globalPublishMap->{'*'} // {};
 
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] getDevicePublishRec> readingMap ".Dumper($readingMap));
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] getDevicePublishRec> wildcardReadingMap ".Dumper($wildcardReadingMap));
@@ -1629,7 +1628,8 @@ sub CreateSingleDeviceTableAttrSubscribe($$$$) {
 
               my $combined = computeDefaults($hash, 'sub:', $globalMap, $devMap, {'device'=>$dev,'reading'=>'#reading','name'=>'#name','mode'=>$rmap->{'mode'}});
               #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] sub: Defaults: ".Dumper($combined));
-              my $topic = _evalValue2($hash->{NAME},$val,{'device'=>$dev,'reading'=>'#reading','name'=>'#name',%$combined}) if defined $val;
+              my $topic;
+              $topic = _evalValue2($hash->{NAME},$val,{'device'=>$dev,'reading'=>'#reading','name'=>'#name',%$combined}) if defined $val;
               if(!defined($topic)) {
                 Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE: [$hash->{NAME}] subscribe: error while interpret topic: $val");
               } else {
@@ -2362,20 +2362,23 @@ sub isTypeDevReadingExcluded($$$$$) {
   return 1 if (defined($gExcludesReadingMap) and ($gExcludesReadingMap->{$reading}));
 
   # types
-  my $exType=$gExcludesTypeMap->{$type} if defined $gExcludesTypeMap;
-  if(defined $exType) {
-    return 1 if ($exType eq "*");
-    return 1 if ($exType eq $reading);
+  if (defined $gExcludesTypeMap) { 
+    my $exType=$gExcludesTypeMap->{$type};
+    if(defined $exType) {
+      return 1 if ($exType eq "*");
+      return 1 if ($exType eq $reading);
+    }
   }
 
   # devices
-  my $exDevName=$gExcludesDevMap->{$devName} if defined $gExcludesDevMap;
-  if(defined $exDevName) {
-    return 1 if ($exDevName eq "*");
-    return 1 if ($exDevName eq $reading);
+  if (defined $gExcludesDevMap) {
+    my $exDevName=$gExcludesDevMap->{$devName};
+    if(defined $exDevName) {
+      return 1 if ($exDevName eq "*");
+      return 1 if ($exDevName eq $reading);
+    }
   }
-  
-  return undef;
+  return;
 }
 
 # Prueft, ob per MQTT ankommende Nachrichten ggf. per MQTT weiter geleitet werden duerfen.
@@ -2584,10 +2587,10 @@ sub publishDeviceUpdate($$$$$) {
         my $r = doPublish($hash,$devn,$reading,$key,$val,$qos,$retain,$resendOnConnect);
         $updated = 1 unless defined $r;
       }
-    } else {
-            #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> DEBUG: publish: Topic: $topic Msg: $message");
-            my $r = doPublish($hash,$devn,$reading,$topic,$message,$qos,$retain,$resendOnConnect)  if defined $topic and defined $message;
-        $updated = 1 unless defined $r;
+    } elsif (defined $topic and defined $message) {
+      #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> DEBUG: publish: Topic: $topic Msg: $message");
+      my $r = doPublish($hash,$devn,$reading,$topic,$message,$qos,$retain,$resendOnConnect);  
+      $updated = 1 unless defined $r;
     }
     if($updated) {
       updatePubTime($hash,$devn,$reading);
