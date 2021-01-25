@@ -442,6 +442,7 @@ sub MQTT_GENERIC_BRIDGE_Initialize($) {
     CTRL_ATTR_NAME_GLOBAL_DEV_EXCLUDE.":textField-long ".
     "disable:1,0 ".
     "debug:0,1 ".
+    "forceNEXT:0,1 ".
     $main::readingFnAttributes;
 
     #main::LoadModule("MQTT");
@@ -801,6 +802,7 @@ sub firstInit($) {
     }
 
     if (isIODevMQTT($hash)) {
+      MQTT::client_start($hash); #if defined $hash->{+HELPER}->{+IO_DEV_TYPE} and $hash->{+HELPER}->{+IO_DEV_TYPE} eq 'MQTT';
       MQTT::client_start($hash); #if defined $hash->{+HELPER}->{+IO_DEV_TYPE} and $hash->{+HELPER}->{+IO_DEV_TYPE} eq 'MQTT';
       readingsSingleUpdate($hash,"transmission-state","IO device initialized (mqtt)",1);
     } elsif (isIODevMQTT2($hash)) {
@@ -2817,6 +2819,7 @@ sub Parse($$) {
   
   my @instances = devspec2array("TYPE=MQTT_GENERIC_BRIDGE");
   my @ret=();
+  my $forceNext = 0;
   foreach my $dev (@instances) {
     my $hash = $defs{$dev};
     # Name mit IODev vegleichen
@@ -2837,6 +2840,7 @@ sub Parse($$) {
     next unless defined $fret;
     if( ref($fret) eq 'ARRAY' ) {
       push (@ret, @{$fret});
+      $forceNext = 1 if AttrVal($hash->{NAME},'forceNEXT',0);
       #my @ret=@{$fret};
       #unshift(@ret, "[NEXT]"); # damit weitere Geraetemodule ggf. aufgerufen werden
       #return @ret;
@@ -2844,7 +2848,7 @@ sub Parse($$) {
       Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE: [$hash->{NAME}] Parse ($iiodt : '$ioname'): internal error:  onmessage returned an unexpected value: ".$fret);  
     }
   }
-  unshift(@ret, "[NEXT]"); # damit weitere Geraetemodule ggf. aufgerufen werden
+  unshift(@ret, "[NEXT]") if !(@ret) || $forceNext; # damit weitere Geraetemodule ggf. aufgerufen werden
   return @ret;
 }
 
@@ -2941,7 +2945,9 @@ sub onmessage($$$) {
 }
 1;
 
+__END__
 =pod
+=encoding utf8
 =item [device]
 =item summary MQTT_GENERIC_BRIDGE acts as a bridge for any fhem-devices and mqtt-topics
 =begin html
@@ -3091,7 +3097,12 @@ sub onmessage($$$) {
         <p>Example:<br/>
             <code>attr &lt;dev&gt; globalDeviceExclude Test Bridge:transmission-state</code></p>
    </li>
-
+   
+   <li>
+    <p>forceNEXT<br/>
+       Only relevant for MQTT2_CLIENT or MQTT2_SERVER as IODev. If set to 1, MQTT_GENERIC_BRIDGE will forward incoming messages also to further client modules like MQTT2_DEVICE, even if the topic matches to one of the subscriptions of the controlled devices. By default, these messages will not be forwarded for better compability with autocreate feature on MQTT2_DEVICE. See also <a href="#MQTT2_CLIENTclientOrder">clientOrder attribute in MQTT2 IO-type commandrefs</a>; setting this in one instance of MQTT_GENERIC _BRIDGE might affect others, too.</p>
+   </li>
+   <br>
    <p>For the monitored devices, a list of the possible attributes is automatically extended by several further entries. 
       They all begin with a prefix previously defined in the bridge. These attributes are used to configure the actual MQTT mapping.<br/>
       By default, the following attribute names are used: mqttDefaults, mqttAlias, mqttPublish, mqttSubscribe.
@@ -3487,6 +3498,14 @@ sub onmessage($$$) {
         <p>Beispiel:<br/>
             <code>attr &lt;dev&gt; globalDeviceExclude Test Bridge:transmission-state</code></p>
    </li>
+   
+      
+   <li>
+    <p>forceNEXT<br/>
+       Nur relevant, wenn MQTT2_CLIENT oder MQTT2_SERVER als IODev verwendet werden. Wird dieses Attribut auf 1 gesetzt, gibt MQTT_GENERIC_BRIDGE alle eingehenden Nachrichten an weitere Client Module (z.b. MQTT2_DEVICE) weiter, selbst wenn der betreffende Topic von einem von der MQTT_GENERIC_BRIDGE überwachten Gerät verwendet wird. Im Regelfall ist dies nicht erwünscht und daher ausgeschaltet, um unnötige <i>autocreates</i> oder Events an MQTT2_DEVICEs zu vermeiden. Siehe dazu auch das <a href="#MQTT2_CLIENTclientOrder">clientOrder Attribut</a> bei MQTT2_CLIENT bzw -SERVER; wird das Attribut in einer Instance von MQTT_GENERIC _BRIDGE gesetzt, kann das Auswirkungen auf weitere Instanzen haben.</p>
+   </li>
+   <br>
+
 
    <p>Fuer die ueberwachten Geraete wird eine Liste der moeglichen Attribute automatisch um mehrere weitere Eintraege ergaenzt. 
       Sie fangen alle mit vorher mit dem in der Bridge definiertem Prefix an. Ueber diese Attribute wird die eigentliche MQTT-Anbindung konfiguriert.<br/>
