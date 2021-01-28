@@ -3509,8 +3509,8 @@ __END__
       Als Standardwert werden folgende Attributnamen verwendet: <i>mqttDefaults</i>, <i>mqttAlias</i>, <i>mqttPublish</i>, <i>mqttSubscribe</i>.
       <br/>Die Bedeutung dieser Attribute wird im Folgenden erklärt.
     </p>
-
-    <li>
+    <ul>
+       <li>
         <p><a name="MQTT_GENERIC_BRIDGEmqttDefaults">mqttDefaults</a><br/>
             Hier wird eine Liste der "key=value"-Paare erwartet. Folgende Keys sind dabei möglich:
             <ul>
@@ -3746,6 +3746,7 @@ __END__
       <li>Abonnements werden nur erneuert, wenn sich das Topic aendert; QOS-Flag-Aenderung alleine wirkt sich daher erst nach einem Neustart aus.</li>
 </ul>
 
+
 <!--TODO-->
 <!--
 <p><b>Ideen:</b></p>
@@ -3758,7 +3759,7 @@ __END__
   <li>templates (template in der Bridge, mqttUseTemplate in Device)</li>
 </ul>
 -->
-</ul>
+
 
 =end html_DE
 =cut
