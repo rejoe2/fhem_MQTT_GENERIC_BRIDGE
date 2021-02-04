@@ -1,0 +1,286 @@
+Analyse mit http://perlcritic.com/ => source code upload, Severity level (3) harsh
+
+=> es werden mit "?" auch Hinweise gegeben, warum das als "nicht gut" eingestuft wird.
+
+Statistic svn Version 23653 (cref patched):
+
+
+Total lines:   3771
+Code lines:    1670
+Comment lines: 1010
+Data lines:       0
+Blank lines:    275
+POD lines:      816
+
+Total violations: 253
+Severity 5:       107
+Severity 4:        57
+Severity 3:        89
+
+Total subroutines:   93
+Average McCabe:    7.13
+
+###################################################
+Level 5 critic
+
+Subroutine prototypes used at line 422, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 558, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 559, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 560, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 561, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 562, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 563, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 564, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 565, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 566, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 567, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 568, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 569, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 570, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 571, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 572, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 573, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 574, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 575, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 576, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 577, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 578, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 579, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 580, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 581, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 582, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 583, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 584, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 588, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 597, column 1. See page 194 of PBP. 	
+"return" statement with explicit "undef" at line 668, column 3. See page 199 of PBP. 	
+Subroutine prototypes used at line 680, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 689, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 696, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 713, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 721, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 729, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 737, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 744, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 751, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 779, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 833, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 848, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 868, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 887, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 944, column 1. See page 194 of PBP. 	
+"return" statement with explicit "undef" at line 967, column 3. See page 199 of PBP. 	
+Subroutine prototypes used at line 976, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 996, column 1. See page 194 of PBP. 	
+"return" statement with explicit "undef" at line 1016, column 5. See page 199 of PBP. 	
+Subroutine prototypes used at line 1024, column 1. See page 194 of PBP. 	
+"return" statement with explicit "undef" at line 1049, column 3. See page 199 of PBP. 	
+Subroutine prototypes used at line 1058, column 1. See page 194 of PBP. 	
+"return" statement with explicit "undef" at line 1110, column 3. See page 199 of PBP. 	
+Subroutine prototypes used at line 1114, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 1135, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 1183, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 1279, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 1359, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 1399, column 1. See page 194 of PBP. 	
+Stricture disabled at line 1412, column 5. See page 429 of PBP. 	
+Expression form of "eval" at line 1445, column 11. See page 161 of PBP. 	
+Subroutine prototypes used at line 1481, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 1543, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 1562, column 1. See page 194 of PBP. 	
+"return" statement with explicit "undef" at line 1674, column 3. See page 199 of PBP. 	
+Subroutine prototypes used at line 1678, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 1694, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 1705, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 1726, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 1732, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 1742, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 1749, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 1762, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 1772, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 1799, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 1808, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 1874, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 1897, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 1907, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 1922, column 1. See page 194 of PBP. 	
+"return" statement with explicit "undef" at line 2139, column 5. See page 199 of PBP. 	
+Subroutine prototypes used at line 2146, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 2240, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 2299, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 2340, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 2353, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 2400, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 2416, column 1. See page 194 of PBP. 	
+"return" statement with explicit "undef" at line 2474, column 5. See page 199 of PBP. 	
+"return" statement with explicit "undef" at line 2485, column 7. See page 199 of PBP. 	
+Subroutine prototypes used at line 2501, column 1. See page 194 of PBP. 	
+Stricture disabled at line 2558, column 7. See page 429 of PBP. 	
+Expression form of "eval" at line 2573, column 14. See page 161 of PBP. 	
+Subroutine prototypes used at line 2615, column 1. See page 194 of PBP. 	
+"return" statement with explicit "undef" at line 2707, column 5. See page 199 of PBP. 	
+Subroutine prototypes used at line 2712, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 2743, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 2754, column 1. See page 194 of PBP. 	
+"return" statement with explicit "undef" at line 2780, column 7. See page 199 of PBP. 	
+"return" statement with explicit "undef" at line 2799, column 5. See page 199 of PBP. 	
+"return" statement with explicit "undef" at line 2802, column 5. See page 199 of PBP. 	
+Subroutine prototypes used at line 2811, column 1. See page 194 of PBP. 	
+Subroutine prototypes used at line 2864, column 1. See page 194 of PBP. 	
+Stricture disabled at line 2901, column 11. See page 429 of PBP. 	
+Expression form of "eval" at line 2905, column 21. See page 161 of PBP. 	
+"return" statement with explicit "undef" at line 2952, column 3. See page 199 of PBP. 	
+
+###################################################
+Level 4 critic
+
+Code not contained in explicit package at line 391, column 1. Violates encapsulation. 	
+Pragma "constant" used at line 410, column 1. See page 55 of PBP. 	
+Subroutine "MQTT_GENERIC_BRIDGE_Initialize" does not end with "return" at line 422, column 1. See page 197 of PBP. 	
+Always unpack @_ first at line 422, column 1. See page 178 of PBP. 	
+Pragma "constant" used at line 527, column 1. See page 55 of PBP. 	
+Subroutine "Undefine" does not end with "return" at line 672, column 1. See page 197 of PBP. 	
+Subroutine "refreshUserAttr" does not end with "return" at line 680, column 1. See page 197 of PBP. 	
+Subroutine "firstInit" does not end with "return" at line 779, column 1. See page 197 of PBP. 	
+Subroutine "timerProc" does not end with "return" at line 833, column 1. See page 197 of PBP. 	
+Subroutine "updateDevCount" does not end with "return" at line 868, column 1. See page 197 of PBP. 	
+Subroutine "removeOldUserAttr" does not end with "return" at line 887, column 1. See page 197 of PBP. 	
+Subroutine "_takeDefaults" does not end with "return" at line 976, column 1. See page 197 of PBP. 	
+Mixed high and low-precedence booleans at line 1079, column 12. See page 70 of PBP. 	
+Subroutine "updatePubTime" does not end with "return" at line 1114, column 1. See page 197 of PBP. 	
+Mixed high and low-precedence booleans at line 1216, column 47. See page 70 of PBP. 	
+Mixed high and low-precedence booleans at line 1219, column 45. See page 70 of PBP. 	
+Mixed high and low-precedence booleans at line 1220, column 54. See page 70 of PBP. 	
+Mixed high and low-precedence booleans at line 1225, column 49. See page 70 of PBP. 	
+Mixed high and low-precedence booleans at line 1228, column 47. See page 70 of PBP. 	
+Mixed high and low-precedence booleans at line 1229, column 56. See page 70 of PBP. 	
+Mixed high and low-precedence booleans at line 1241, column 67. See page 70 of PBP. 	
+Mixed high and low-precedence booleans at line 1243, column 65. See page 70 of PBP. 	
+Mixed high and low-precedence booleans at line 1244, column 74. See page 70 of PBP. 	
+Mixed high and low-precedence booleans at line 1252, column 7. See page 70 of PBP. 	
+Don't turn off strict for large blocks of code at line 1412, column 5. See page 433 of PBP. 	
+Mixed high and low-precedence booleans at line 1507, column 17. See page 70 of PBP. 	
+Mixed high and low-precedence booleans at line 1591, column 12. See page 70 of PBP. 	
+Subroutine "deleteEmptyDevices" does not end with "return" at line 1678, column 1. See page 197 of PBP. 	
+Subroutine "CreateSingleDeviceTable" does not end with "return" at line 1694, column 1. See page 197 of PBP. 	
+Subroutine "_RefreshDeviceTable" does not end with "return" at line 1705, column 1. See page 197 of PBP. 	
+Subroutine "RefreshDeviceTable" does not end with "return" at line 1726, column 1. See page 197 of PBP. 	
+Subroutine "RefreshGlobalTableAll" does not end with "return" at line 1732, column 1. See page 197 of PBP. 	
+Subroutine "RefreshGlobalTable" does not end with "return" at line 1742, column 1. See page 197 of PBP. 	
+Subroutine "RenameDeviceInTable" does not end with "return" at line 1749, column 1. See page 197 of PBP. 	
+Subroutine "DeleteDeviceInTable" does not end with "return" at line 1762, column 1. See page 197 of PBP. 	
+Subroutine "CreateDevicesTable" does not end with "return" at line 1772, column 1. See page 197 of PBP. 	
+Subroutine "UpdateSubscriptionsSingleDevice" does not end with "return" at line 1799, column 1. See page 197 of PBP. 	
+Subroutine "UpdateSubscriptions" does not end with "return" at line 1808, column 1. See page 197 of PBP. 	
+Subroutine "RemoveAllSubscripton" does not end with "return" at line 1874, column 1. See page 197 of PBP. 	
+Subroutine "InitializeDevices" does not end with "return" at line 1897, column 1. See page 197 of PBP. 	
+Subroutine "CheckInitialization" does not end with "return" at line 1907, column 1. See page 197 of PBP. 	
+Subroutine "Get" does not end with "return" at line 1922, column 1. See page 197 of PBP. 	
+Mixed high and low-precedence booleans at line 2012, column 28. See page 70 of PBP. 	
+Augmented assignment operator '.=' used in declaration at line 2048, column 21. Use simple assignment when initializing variables. 	
+Subroutine "Notify" does not end with "return" at line 2081, column 1. See page 197 of PBP. 	
+Expression form of "grep" at line 2087, column 9. See page 169 of PBP. 	
+Subroutine "checkPublishDeviceReadingsUpdates" does not end with "return" at line 2146, column 1. See page 197 of PBP. 	
+Mixed high and low-precedence booleans at line 2211, column 10. See page 70 of PBP. 	
+Subroutine "defineDefaultGlobalExclude" does not end with "return" at line 2340, column 1. See page 197 of PBP. 	
+Mixed high and low-precedence booleans at line 2404, column 27. See page 70 of PBP. 	
+Subroutine "publishDeviceUpdate" does not end with "return" at line 2501, column 1. See page 197 of PBP. 	
+Don't turn off strict for large blocks of code at line 2558, column 7. See page 433 of PBP. 	
+Mixed high and low-precedence booleans at line 2566, column 14. See page 70 of PBP. 	
+Subroutine "Attr" does not end with "return" at line 2615, column 1. See page 197 of PBP. 	
+Subroutine "ioDevConnect" does not end with "return" at line 2712, column 1. See page 197 of PBP. 	
+Subroutine "ioDevDisconnect" does not end with "return" at line 2743, column 1. See page 197 of PBP. 	
+Don't turn off strict for large blocks of code at line 2901, column 11. See page 433 of PBP. 	
+
+###################################################
+Level 3 critic
+
+Package variable declared or used at line 454, column 5. See pages 73,75 of PBP. 	
+Regular expression without "/x" flag at line 594, column 34. See page 236 of PBP. 	
+Regular expression without "/x" flag at line 612, column 14. See page 236 of PBP. 	
+Package variable declared or used at line 664, column 34. See pages 73,75 of PBP. 	
+Package variable declared or used at line 791, column 7. See pages 73,75 of PBP. 	
+Package variable declared or used at line 918, column 14. See pages 73,75 of PBP. 	
+Package variable declared or used at line 933, column 30. See pages 73,75 of PBP. 	
+Package variable declared or used at line 935, column 16. See pages 73,75 of PBP. 	
+Package variable declared or used at line 937, column 9. See pages 73,75 of PBP. 	
+Subroutine "CreateSingleDeviceTableAttrPublish" with high complexity score (24) at line 1058, column 1. Consider refactoring. 	
+Regular expression without "/x" flag at line 1087, column 33. See page 236 of PBP. 	
+Too many arguments at line 1183, column 1. See page 182 of PBP. 	
+Subroutine "getDevicePublishRecIntern" with high complexity score (41) at line 1183, column 1. Consider refactoring. 	
+Regular expression without "/x" flag at line 1266, column 37. See page 236 of PBP. 	
+Regular expression without "/x" flag at line 1269, column 39. See page 236 of PBP. 	
+Too many arguments at line 1279, column 1. See page 182 of PBP. 	
+Subroutine "retrieveQosRetainExpression" with high complexity score (30) at line 1279, column 1. Consider refactoring. 	
+Regular expression without "/x" flag at line 1408, column 14. See page 236 of PBP. 	
+"local" variable not initialized at line 1413, column 5. See page 78 of PBP. 	
+Cascading if-elsif chain at line 1425, column 9. See pages 117,118 of PBP. 	
+Regular expression without "/x" flag at line 1438, column 18. See page 236 of PBP. 	
+Code structure is deeply nested at line 1504, column 13. Consider refactoring. 	
+Code structure is deeply nested at line 1507, column 13. Consider refactoring. 	
+Regular expression without "/x" flag at line 1545, column 9. See page 236 of PBP. 	
+Regular expression without "/x" flag at line 1547, column 9. See page 236 of PBP. 	
+Regular expression without "/x" flag at line 1548, column 9. See page 236 of PBP. 	
+Regular expression without "/x" flag at line 1549, column 9. See page 236 of PBP. 	
+Regular expression without "/x" flag at line 1550, column 9. See page 236 of PBP. 	
+Regular expression without "/x" flag at line 1551, column 9. See page 236 of PBP. 	
+Regular expression without "/x" flag at line 1552, column 9. See page 236 of PBP. 	
+Regular expression without "/x" flag at line 1554, column 9. See page 236 of PBP. 	
+Subroutine "CreateSingleDeviceTableAttrSubscribe" with high complexity score (26) at line 1562, column 1. Consider refactoring. 	
+Regular expression without "/x" flag at line 1603, column 33. See page 236 of PBP. 	
+Regular expression without "/x" flag at line 1610, column 54. See page 236 of PBP. 	
+Code structure is deeply nested at line 1614, column 13. Consider refactoring. 	
+Code structure is deeply nested at line 1643, column 15. Consider refactoring. 	
+Regular expression without "/x" flag at line 1648, column 25. See page 236 of PBP. 	
+Regular expression without "/x" flag at line 1651, column 25. See page 236 of PBP. 	
+Regular expression without "/x" flag at line 1658, column 25. See page 236 of PBP. 	
+Regular expression without "/x" flag at line 1659, column 25. See page 236 of PBP. 	
+Regular expression without "/x" flag at line 1660, column 25. See page 236 of PBP. 	
+Too many arguments at line 1705, column 1. See page 182 of PBP. 	
+Subroutine "Get" with high complexity score (51) at line 1922, column 1. Consider refactoring. 	
+Regular expression without "/x" flag at line 1965, column 21. See page 236 of PBP. 	
+Regular expression without "/x" flag at line 1966, column 21. See page 236 of PBP. 	
+Regular expression without "/x" flag at line 1978, column 33. See page 236 of PBP. 	
+Regular expression without "/x" flag at line 1987, column 35. See page 236 of PBP. 	
+Found "ne" in condition for an "unless" at line 1992, column 33. See page 99 of PBP. 	
+Regular expression without "/x" flag at line 2000, column 35. See page 236 of PBP. 	
+Code structure is deeply nested at line 2008, column 15. Consider refactoring. 	
+Code structure is deeply nested at line 2009, column 13. Consider refactoring. 	
+Code structure is deeply nested at line 2014, column 15. Consider refactoring. 	
+Code structure is deeply nested at line 2028, column 19. Consider refactoring. 	
+Found "ne" in condition for an "unless" at line 2060, column 33. See page 99 of PBP. 	
+Regular expression without "/x" flag at line 2087, column 14. See page 236 of PBP. 	
+Regular expression without "/x" flag at line 2098, column 13. See page 236 of PBP. 	
+Regular expression without "/x" flag at line 2100, column 16. See page 236 of PBP. 	
+Cascading if-elsif chain at line 2100, column 7. See pages 117,118 of PBP. 	
+Regular expression without "/x" flag at line 2106, column 21. See page 236 of PBP. 	
+Regular expression without "/x" flag at line 2112, column 21. See page 236 of PBP. 	
+Regular expression without "/x" flag at line 2125, column 21. See page 236 of PBP. 	
+Package variable declared or used at line 2162, column 15. See pages 73,75 of PBP. 	
+Found ">" in condition for an "unless" at line 2183, column 15. See page 99 of PBP. 	
+Regular expression without "/x" flag at line 2189, column 15. See page 236 of PBP. 	
+Capture variable used outside conditional at line 2191, column 22. See page 253 of PBP. 	
+Capture variable used outside conditional at line 2192, column 18. See page 253 of PBP. 	
+Subroutine "defineGlobalTypeExclude" with high complexity score (23) at line 2240, column 1. Consider refactoring. 	
+Regular expression without "/x" flag at line 2264, column 39. See page 236 of PBP. 	
+Regular expression without "/x" flag at line 2318, column 38. See page 236 of PBP. 	
+Package variable declared or used at line 2357, column 20. See pages 73,75 of PBP. 	
+Package variable declared or used at line 2402, column 19. See pages 73,75 of PBP. 	
+Too many arguments at line 2416, column 1. See page 182 of PBP. 	
+Subroutine "doPublish" with high complexity score (24) at line 2416, column 1. Consider refactoring. 	
+Code structure is deeply nested at line 2439, column 13. Consider refactoring. 	
+Subroutine "publishDeviceUpdate" with high complexity score (33) at line 2501, column 1. Consider refactoring. 	
+"local" variable not initialized at line 2559, column 7. See page 78 of PBP. 	
+Cascading if-elsif chain at line 2575, column 7. See pages 117,118 of PBP. 	
+Subroutine "Attr" with high complexity score (36) at line 2615, column 1. Consider refactoring. 	
+Package variable declared or used at line 2618, column 14. See pages 73,75 of PBP. 	
+Package variable declared or used at line 2690, column 24. See pages 73,75 of PBP. 	
+Package variable declared or used at line 2691, column 13. See pages 73,75 of PBP. 	
+Package variable declared or used at line 2694, column 81. See pages 73,75 of PBP. 	
+Package variable declared or used at line 2694, column 49. See pages 73,75 of PBP. 	
+Package variable declared or used at line 2695, column 13. See pages 73,75 of PBP. 	
+Package variable declared or used at line 2700, column 13. See pages 73,75 of PBP. 	
+Regular expression without "/x" flag at line 2820, column 14. See page 236 of PBP. 	
+Subroutine "onmessage" with high complexity score (21) at line 2864, column 1. Consider refactoring. 	
+"local" variable not initialized at line 2902, column 11. See page 78 of PBP. 	
+Cascading if-elsif chain at line 2906, column 11. See pages 117,118 of PBP. 

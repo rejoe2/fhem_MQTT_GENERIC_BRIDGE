@@ -391,6 +391,7 @@
 use strict;
 use warnings;
 use AttrTemplate;
+##no critic qw(prototype) #Beta-User: might be discussed later
 
 #my $DEBUG = 1;
 my $cvsid = '$Id: 10_MQTT_GENERIC_BRIDGE.pm 23653 2021-01-31 21:34:39Z hexenmeister $';
@@ -665,7 +666,7 @@ sub Define() {
   # noetig hier beim Anlegen im laufendem Betrieb
   InternalTimer(1, \&firstInit, $hash);
 
-  return undef;
+  return;
 }
 
 # Device undefine
@@ -964,7 +965,7 @@ sub IsObservedAttribute($$) {
     return 1;
   }
 
-  return undef;
+  return;
 }
 
 # Internal. Legt Defaultwerte im Map ab. Je nach Schluessel werden die Werte fuer 'pub:', 'sub:' oder beides abgelegt.
@@ -1013,7 +1014,7 @@ sub CreateSingleDeviceTableAttrDefaults($$$$) {
     # _takeDefaults($map, $dev, $named, 'expression');
     return defined($map->{$dev}->{':defaults'});
   } else {
-    return undef;
+    return;
   }
 }
 
@@ -1046,7 +1047,7 @@ sub CreateSingleDeviceTableAttrAlias($$$$) {
       return defined($map->{$dev}->{':alias'});
     }
   }
-  return undef;
+  return;
 }
 
 # Erstellt Strukturen fuer 'Publish' fuer ein bestimmtes Geraet.
@@ -1107,7 +1108,7 @@ sub CreateSingleDeviceTableAttrPublish($$$$) {
     }
   }
 
-  return undef;
+  return;
 }
 
 # Sucht nach device/reading in der Dev-Map und speichert aktuellen dort den Zeitstempel
@@ -1671,7 +1672,7 @@ sub CreateSingleDeviceTableAttrSubscribe($$$$) {
     }
     $map->{$dev} = $devMap;
   }
-  return undef;
+  return;
 }
 
 # Prueft, ob Geraete keine Definitionen mehr enthalten und entfernt diese ggf. aus der Tabelle
@@ -2136,7 +2137,7 @@ sub Notify() {
         }
       }
     }
-    return undef;
+    return;
   }
 
   checkPublishDeviceReadingsUpdates($hash, $dev);
@@ -2471,7 +2472,7 @@ sub doPublish($$$$$$$$) {
     readingsSingleUpdate($hash,"transmission-state","outgoing publish sent",1);
     $hash->{+HELPER}->{+HS_PROP_NAME_OUTGOING_CNT}++;
     readingsSingleUpdate($hash,"outgoing-count",$hash->{+HELPER}->{+HS_PROP_NAME_OUTGOING_CNT},1);
-    return undef;
+    return;
   } elsif (isIODevMQTT($hash)) { #elsif ($hash->{+HELPER}->{+IO_DEV_TYPE} eq 'MQTT') {
     #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] doPublish for $device, $reading, topic: $topic, message: $message");
     my $msgid;
@@ -2482,7 +2483,7 @@ sub doPublish($$$$$$$$) {
       $hash->{+HELPER}->{+HS_PROP_NAME_OUTGOING_CNT}++;
       readingsSingleUpdate($hash,"outgoing-count",$hash->{+HELPER}->{+HS_PROP_NAME_OUTGOING_CNT},1);
       #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] publish: $topic => $message");
-      return undef;
+      return;
     }
     $hash->{message_ids}->{$msgid}++ if defined $msgid;
     return 'empty topic or message';
@@ -2704,7 +2705,7 @@ sub Attr($$$$) {
         
       last;
     };
-    return undef;
+    return;
   }
 }
 
@@ -2777,7 +2778,7 @@ sub doSetUpdate($$$$$) {
     unless (defined($err)) {
       $hash->{+HELPER}->{+HS_PROP_NAME_UPDATE_S_CNT}++; 
       readingsSingleUpdate($hash,"updated-set-count",$hash->{+HELPER}->{+HS_PROP_NAME_UPDATE_S_CNT},1);
-      return undef;
+      return;
     }
     Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE: [$hash->{NAME}] setUpdate: error in set command: ".$err);
     return "error in set command: $err";
@@ -2796,10 +2797,10 @@ sub doSetUpdate($$$$$) {
 
     $hash->{+HELPER}->{+HS_PROP_NAME_UPDATE_R_CNT}++; 
     readingsSingleUpdate($hash,"updated-reading-count",$hash->{+HELPER}->{+HS_PROP_NAME_UPDATE_R_CNT},1);
-    return undef;
+    return;
   } elsif($mode eq 'A') {
     CommandAttr(undef, "$device $reading $message");
-    return undef;
+    return;
   } else {
     Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE: [$hash->{NAME}] setUpdate: unexpected mode: ".$mode);
     return "unexpected mode: $mode";
@@ -2949,7 +2950,7 @@ sub onmessage($$$) {
         #}
   }
   return \@updatedList if($updated);
-  return undef;
+  return;
 }
 1;
 
