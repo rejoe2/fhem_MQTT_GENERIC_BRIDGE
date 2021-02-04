@@ -2466,7 +2466,7 @@ sub doPublish($$$$$$$$) {
   if (isIODevMQTT2($hash)){ #if ($hash->{+HELPER}->{+IO_DEV_TYPE} eq 'MQTT2_SERVER') {
     # TODO: publish MQTT2
     # TODO qos / retain ? 
-    $topic .=':r' if $retain;
+    $topic.=':r' if $retain;
     IOWrite($hash, "publish", $topic.' '.$message);
     readingsSingleUpdate($hash,"transmission-state","outgoing publish sent",1);
     $hash->{+HELPER}->{+HS_PROP_NAME_OUTGOING_CNT}++;
@@ -3197,7 +3197,7 @@ sub onmessage($$$) {
 
     <li>
         <p><a name="MQTT_GENERIC_BRIDGEmqttSubscribe">mqttSubscribe</a><br/>
-            This attribute configures the device to receie MQTT messages and execute corresponding actions.<br/>
+            This attribute configures the device to receive MQTT messages and execute corresponding actions.<br/>
             The configuration is similar to that for the 'mqttPublish' attribute. 
             Topics can be defined for setting readings ('topic' or 'readings-topic') and calls to the 'set' command on the device ('stopic' or 'set-topic').<br/>
             Also attributes can be set ('atopic' or 'attr-topic').</br>
@@ -3219,7 +3219,7 @@ sub onmessage($$$) {
             The variable $name, unlike $reading, may be affected by the aliases defined in 'mqttAlias'. Also use of $base is allowed.<br/>
             When using 'stopic', the 'set' command is executed as 'set &lt;dev&gt; &lt;reading&gt; &lt;value&gt;'.
             For something like 'set &lt;dev&gt; &lt;value&gt;'  'state' should be used as reading name.</p>
-            <p>If JSON support is needed: Use <i>json2nameValue()</i> method provided by <i>fhem.pl</i> in 'expression'. The parameter should be '$message'.</p>
+            <p>If JSON support is needed: Use the <i>json2nameValue()</i> method provided by <i>fhem.pl</i> in 'expression' with '$message' as parameter.</p>
             <p>Examples:<br/>
                 <code>attr &lt;dev&gt; mqttSubscribe temperature:topic=TEST/temperature test:qos=0 *:topic={"TEST/$reading/value"} <br/>
                     attr &lt;dev&gt; mqttSubscribe desired-temperature:stopic={"TEST/temperature/set"}<br/>
@@ -3381,7 +3381,7 @@ sub onmessage($$$) {
    Wird dieser z.B. als 'mqttGB1_' festgelegt, heißen die Steuerungsattribute entsprechend mqttGB1_Publish etc.</p>
    <p>Der zweite Parameter ('devspec') erlaubt die Menge der zu überwachenden Geräten 
    zu begrenzen (sonst werden einfach alle überwacht, was jedoch Performance kosten kann).
-   Beispiel für devspec: 'TYPE=dummy' oder 'dummy1,dummy2'. Es gelten die allgemeinen Regeln für <a href="#devspec">devspec</a>, sind bei kommaseparierter Liste also keine Leerzeichen erlaubt!</p>
+   Beispiel für devspec: 'TYPE=dummy' oder 'dummy1,dummy2'. Es gelten die allgemeinen Regeln für <a href="#devspec">devspec</a>, bei kommaseparierter Liste sind also keine Leerzeichen erlaubt!</p>
    
    
  </ul>
