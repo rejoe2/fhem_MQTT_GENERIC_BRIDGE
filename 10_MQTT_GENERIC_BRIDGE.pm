@@ -388,10 +388,20 @@
 # [open]
 #
 
+package MQTT::GENERIC_BRIDGE;
+
 use strict;
 use warnings;
 use AttrTemplate;
-##no critic qw(prototype) #Beta-User: might be discussed later
+##no critic qw(prototype constant Package) #Beta-User: prototype might be discussed later
+
+use GPUtils qw(:all);
+
+#if ($DEBUG) {
+  use Data::Dumper;
+##   $gets{"debugInfo"}="noArg";
+##   $gets{"debugReinit"}="noArg";
+#}
 
 #my $DEBUG = 1;
 my $cvsid = '$Id: 10_MQTT_GENERIC_BRIDGE.pm 23653 2021-01-31 21:34:39Z hexenmeister $';
@@ -419,6 +429,74 @@ use constant {
   CTRL_ATTR_NAME_GLOBAL_DEV_EXCLUDE  => "globalDeviceExclude",
   CTRL_ATTR_NAME_GLOBAL_PREFIX       => "global"
 };
+
+
+BEGIN {
+
+  GP_Import(qw(
+    CommandAttr
+    readingsSingleUpdate
+    readingsBeginUpdate
+    readingsBulkUpdate
+    readingsEndUpdate
+    Log3
+    DoSet
+    fhem
+    defs
+    AttrVal
+    ReadingsVal
+    ReadingsTimestamp
+    ReadingsAge
+    deviceEvents
+    AssignIoPort
+    addToDevAttrList
+    delFromDevAttrList
+    devspec2array
+    gettimeofday
+    InternalTimer
+    RemoveInternalTimer
+    json2nameValue
+    toJSON
+    TimeNow
+    IOWrite
+    AttrTemplate_Set
+  ))
+
+};
+
+sub ::MQTT_GENERIC_BRIDGE_Initialize { goto &MQTT_GENERIC_BRIDGE_Initialize }
+
+use constant {
+  HELPER                      => ".helper",
+  IO_DEV_TYPE                 => "IO_DEV_TYPE",
+
+  HS_TAB_NAME_DEVICES         => "devices",
+  HS_TAB_NAME_SUBSCRIBE       => "subscribeTab", # subscribed topics 
+  
+  HS_FLAG_INITIALIZED         => ".initialized",
+  HS_PROP_NAME_INTERVAL       => ".interval",
+  HS_PROP_NAME_PREFIX_OLD     => ".prefix_old",
+  HS_PROP_NAME_DEVICE_CNT     => ".cnt_devices",
+  HS_PROP_NAME_INCOMING_CNT   => ".cnt_incoming",
+  HS_PROP_NAME_OUTGOING_CNT   => ".cnt_outgoing",
+  HS_PROP_NAME_UPDATE_R_CNT   => ".cnt_update_r",
+  HS_PROP_NAME_UPDATE_S_CNT   => ".cnt_update_s",
+  
+  HS_PROP_NAME_PREFIX         => "prefix",
+  HS_PROP_NAME_DEVSPEC        => "devspec",
+
+  HS_PROP_NAME_PUB_OFFLINE_QUEUE       => ".pub_queue", 
+  HS_PROP_NAME_PUB_OFFLINE_QUEUE_MAX_CNT_PROTOPIC => ".pub_queue_max_cnt_pro_topic",
+
+  HS_PROP_NAME_GLOBAL_EXCLUDES_TYPE    => "globalTypeExcludes",
+  HS_PROP_NAME_GLOBAL_EXCLUDES_READING => "globalReadingExcludes",
+  HS_PROP_NAME_GLOBAL_EXCLUDES_DEVICES => "globalDeviceExcludes",
+  DEFAULT_GLOBAL_TYPE_EXCLUDES     => "MQTT:transmission-state MQTT_DEVICE:transmission-state MQTT_BRIDGE:transmission-state MQTT_GENERIC_BRIDGE "
+                                      ."Global telnet FHEMWEB ",
+                                      #."CUL HMLAN HMUARTLGW TCM MYSENSORS MilightBridge JeeLink ZWDongle TUL SIGNALDuino *:transmission-state ",
+  DEFAULT_GLOBAL_DEV_EXCLUDES     => ""
+};
+
 
 sub MQTT_GENERIC_BRIDGE_Initialize($) {
 
@@ -471,90 +549,6 @@ sub MQTT_GENERIC_BRIDGE_Initialize($) {
     $hash->{'.debug'} = '0';
 }
 
-package MQTT::GENERIC_BRIDGE;
-
-use strict;
-use warnings;
-use GPUtils qw(:all);
-
-#if ($DEBUG) {
-  use Data::Dumper;
-##   $gets{"debugInfo"}="noArg";
-##   $gets{"debugReinit"}="noArg";
-#}
-
-BEGIN {
-
-  GP_Import(qw(
-    CommandAttr
-    readingsSingleUpdate
-    readingsBeginUpdate
-    readingsBulkUpdate
-    readingsEndUpdate
-    Log3
-    DoSet
-    fhem
-    defs
-    AttrVal
-    ReadingsVal
-    ReadingsTimestamp
-    ReadingsAge
-    deviceEvents
-    AssignIoPort
-    addToDevAttrList
-    delFromDevAttrList
-    devspec2array
-    gettimeofday
-    InternalTimer
-    RemoveInternalTimer
-    json2nameValue
-    toJSON
-    TimeNow
-    IOWrite
-    CTRL_ATTR_NAME_DEFAULTS
-    CTRL_ATTR_NAME_ALIAS
-    CTRL_ATTR_NAME_PUBLISH
-    CTRL_ATTR_NAME_SUBSCRIBE
-    CTRL_ATTR_NAME_IGNORE
-    CTRL_ATTR_NAME_FORWARD
-    CTRL_ATTR_NAME_GLOBAL_TYPE_EXCLUDE
-    CTRL_ATTR_NAME_GLOBAL_DEV_EXCLUDE
-    CTRL_ATTR_NAME_GLOBAL_PREFIX
-    AttrTemplate_Set
-  ))
-
-};
-
-use constant {
-  HELPER                      => ".helper",
-  IO_DEV_TYPE                 => "IO_DEV_TYPE",
-
-  HS_TAB_NAME_DEVICES         => "devices",
-  HS_TAB_NAME_SUBSCRIBE       => "subscribeTab", # subscribed topics 
-  
-  HS_FLAG_INITIALIZED         => ".initialized",
-  HS_PROP_NAME_INTERVAL       => ".interval",
-  HS_PROP_NAME_PREFIX_OLD     => ".prefix_old",
-  HS_PROP_NAME_DEVICE_CNT     => ".cnt_devices",
-  HS_PROP_NAME_INCOMING_CNT   => ".cnt_incoming",
-  HS_PROP_NAME_OUTGOING_CNT   => ".cnt_outgoing",
-  HS_PROP_NAME_UPDATE_R_CNT   => ".cnt_update_r",
-  HS_PROP_NAME_UPDATE_S_CNT   => ".cnt_update_s",
-  
-  HS_PROP_NAME_PREFIX         => "prefix",
-  HS_PROP_NAME_DEVSPEC        => "devspec",
-
-  HS_PROP_NAME_PUB_OFFLINE_QUEUE       => ".pub_queue", 
-  HS_PROP_NAME_PUB_OFFLINE_QUEUE_MAX_CNT_PROTOPIC => ".pub_queue_max_cnt_pro_topic",
-
-  HS_PROP_NAME_GLOBAL_EXCLUDES_TYPE    => "globalTypeExcludes",
-  HS_PROP_NAME_GLOBAL_EXCLUDES_READING => "globalReadingExcludes",
-  HS_PROP_NAME_GLOBAL_EXCLUDES_DEVICES => "globalDeviceExcludes",
-  DEFAULT_GLOBAL_TYPE_EXCLUDES     => "MQTT:transmission-state MQTT_DEVICE:transmission-state MQTT_BRIDGE:transmission-state MQTT_GENERIC_BRIDGE "
-                                      ."Global telnet FHEMWEB ",
-                                      #."CUL HMLAN HMUARTLGW TCM MYSENSORS MilightBridge JeeLink ZWDongle TUL SIGNALDuino *:transmission-state ",
-  DEFAULT_GLOBAL_DEV_EXCLUDES     => ""
-};
 
 sub publishDeviceUpdate($$$$$);
 sub UpdateSubscriptionsSingleDevice($$);
