@@ -443,6 +443,9 @@ BEGIN {
     DoSet
     fhem
     defs
+    attr
+    readingFnAttributes
+    init_done
     AttrVal
     ReadingsVal
     ReadingsTimestamp
@@ -530,7 +533,7 @@ sub MQTT_GENERIC_BRIDGE_Initialize($) {
     "disable:1,0 ".
     "debug:0,1 ".
     "forceNEXT:0,1 ".
-    $main::readingFnAttributes;
+    $readingFnAttributes;
 
     #main::LoadModule("MQTT");
 
@@ -656,7 +659,7 @@ sub Define() {
   #   $hash->{subscribeExpr} = [];
   # }
   
-  ::AttrTemplate_Initialize() if $::init_done;
+  ::AttrTemplate_Initialize() if $init_done;
   # noetig hier beim Anlegen im laufendem Betrieb
   InternalTimer(1, \&firstInit, $hash);
 
@@ -779,11 +782,11 @@ sub firstInit($) {
 
   if(isIODevMQTT($hash)) {
     require Net::MQTT::Constants;
-    main::LoadModule("MQTT");
+    ::LoadModule("MQTT");
     MQTT->import(qw(:all));
   }
 
-  if ($main::init_done) {
+  if ($init_done) {
     $hash->{+HELPER}->{+HS_FLAG_INITIALIZED} = 0;
 
     return unless defined(AttrVal($hash->{NAME},"IODev",undef));
@@ -910,7 +913,7 @@ sub removeOldUserAttr($;$$$) {
     # delFromDevAttrList($dev,$prefix.CTRL_ATTR_NAME_IGNORE.":both,incoming,outgoing");
     # delFromDevAttrList($dev,$prefix.CTRL_ATTR_NAME_FORWARD.":all,none");
     # => stattdessen selbst loeschen (nur die 'userattr')
-    my $ua = $main::attr{$dev}{userattr};
+    my $ua = $attr{$dev}{userattr};
     if (defined $ua) {
       my %h = map { ($_ => 1) } split(" ", "$ua");
       #delete $h{$prefix.CTRL_ATTR_NAME_DEFAULTS};
@@ -925,11 +928,11 @@ sub removeOldUserAttr($;$$$) {
       delete $h{$prefix.CTRL_ATTR_NAME_IGNORE.":both,incoming,outgoing"};
       #delete $h{$prefix.CTRL_ATTR_NAME_FORWARD};
       delete $h{$prefix.CTRL_ATTR_NAME_FORWARD.":all,none"};
-      if(!keys %h && defined($main::attr{$dev}{userattr})) {
+      if(!keys %h && defined($attr{$dev}{userattr})) {
         # ganz loeschen, wenn nichts mehr drin
-        delete $main::attr{$dev}{userattr};
+        delete $attr{$dev}{userattr};
       } else {
-        $main::attr{$dev}{userattr} = join(" ", sort keys %h);
+        $attr{$dev}{userattr} = join(" ", sort keys %h);
       }
     }
   }
@@ -2154,10 +2157,10 @@ sub checkPublishDeviceReadingsUpdates($$) {
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] checkPublishDeviceReadingsUpdates: ".$dev->{NAME}." : ".Dumper(@{$dev->{CHANGED}}))  if $dev->{TYPE} ne 'MQTT_GENERIC_BRIDGE';
 
   # nicht waehrend FHEM startet
-  return if( !$main::init_done );
+  return if( !$init_done );
 
   # nicht, wenn deaktivert
-  return "" if(main::IsDisabled($hash->{NAME}));
+  return "" if(::IsDisabled($hash->{NAME}));
 
   #CheckInitialization($hash);
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] checkPublishDeviceReadingsUpdates ------------------------ ");
@@ -2349,7 +2352,7 @@ sub isTypeDevReadingExcluded($$$$$) {
   my ($hash, $direction, $type, $devName, $reading) = @_;
 
   # pruefen, ob im Geraet ignore steht
-  my $devDisable = $main::attr{$devName}{$hash->{+HS_PROP_NAME_PREFIX}.CTRL_ATTR_NAME_IGNORE};
+  my $devDisable = $attr{$devName}{$hash->{+HS_PROP_NAME_PREFIX}.CTRL_ATTR_NAME_IGNORE};
   $devDisable = '0' unless defined $devDisable;
   return 1 if $devDisable eq 'both';
   return 1 if (($direction eq 'pub') and ($devDisable eq 'outgoing'));
@@ -2394,7 +2397,7 @@ sub isTypeDevReadingExcluded($$$$$) {
 #     $reading: Reading (ggf. for future use)
 sub isDoForward($$$) {
   my ($hash, $devName, $reading) = @_;
-  my $doForward = $main::attr{$devName}{$hash->{+HS_PROP_NAME_PREFIX}.CTRL_ATTR_NAME_FORWARD};
+  my $doForward = $attr{$devName}{$hash->{+HS_PROP_NAME_PREFIX}.CTRL_ATTR_NAME_FORWARD};
 
   $doForward = 'none' if (!defined($doForward) and ($defs{$devName}->{TYPE} eq 'dummy')); # Hack fuer Dummy-Devices
 
@@ -2610,7 +2613,7 @@ sub publishDeviceUpdate($$$$$) {
 sub Attr($$$$) {
   my ($command,$name,$attribute,$value) = @_;
 
-  my $hash = $main::defs{$name};
+  my $hash = $defs{$name};
   ATTRIBUTE_HANDLER: {
     # Steuerattribute
     $attribute eq CTRL_ATTR_NAME_GLOBAL_PREFIX.CTRL_ATTR_NAME_DEFAULTS and do {
@@ -2682,17 +2685,17 @@ sub Attr($$$$) {
       $hash->{+HELPER}->{+IO_DEV_TYPE} = $ioDevType;
       
       if ($command eq "set") {
-        my $oldValue = $main::attr{$name}{IODev};
-        if ($main::init_done) {
+        my $oldValue = $attr{$name}{IODev};
+        if ($init_done) {
           unless (defined ($oldValue) and ($oldValue eq $value) ) {
             #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] attr: change IODev");
-            MQTT::client_stop($hash) if defined($main::attr{$name}{IODev}) and ($main::attr{$name}{IODev} eq 'MQTT');
-            $main::attr{$name}{IODev} = $value;
+            MQTT::client_stop($hash) if defined($attr{$name}{IODev}) and ($attr{$name}{IODev} eq 'MQTT');
+            $attr{$name}{IODev} = $value;
             firstInit($hash);
           }
         }
       } else {
-        if ($main::init_done) {
+        if ($init_done) {
           MQTT::client_stop($hash) if defined ($ioDevType) and ($ioDevType eq 'MQTT');
         }
       }
