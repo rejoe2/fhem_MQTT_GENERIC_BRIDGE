@@ -1471,7 +1471,7 @@ sub _evalValue2 {
   my $noEval = shift // 0;
   #$noEval = 0 unless defined $noEval;
   #Log3('xxx',1,"MQTT_GENERIC_BRIDGE:DEBUG:> eval2: str: $str; map: ".Dumper($map));
-  my$ret = $str;
+  my $ret = $str;
   # TODO : umbauen $str =~ m/^(.*)({.*})(.*)$/;; $1.$2.$3 - ok
   # TODO : Maskierte Klammern unterstuetzen? $str =~ m/^(.*)(\\{.*\\})(.*)({.*})(.*)$/;; $1.$2.$3.$4.$5 - irgendwie so
   #if($str =~ m/^{.*}$/) {
@@ -1480,8 +1480,8 @@ sub _evalValue2 {
     my $s1 = $1 // q{}; #$s1='' unless defined $s1;
     my $s2 = $2 // q{}; #$s2='' unless defined $s2;
     my $s3 = $3 // q{}; #$s3='' unless defined $s3;
-    #no strict "refs";
-    #local $@;
+    no strict "refs";
+    local $@;
     my $base = q{};
     my $device = q{};
     my $reading = q{};
@@ -1512,9 +1512,21 @@ sub _evalValue2 {
       }
     }
     #Log3('xxx',1,"MQTT_GENERIC_BRIDGE:DEBUG:> eval2 expr: $s2");
-    #$ret = eval($ret) unless $noEval;
-    #$s2 = eval($s2) unless $noEval;
+    if (0) {
+    $s2 = eval($s2) if !$noEval; 
+    } else {
+    my %specials = (
+         '$base'     => $base,
+         '$device'   => $device,
+         '$reading'  => $reading,
+         '$name'     => $name,
+    );
+    map { my $key =  $_; $key =~ s{\$}{\\\$}gxms;
+      my $val = $specials{$_};
+      $s2 =~ s{$key}{$val}gxms
+    } keys %specials;
     $s2 = AnalyzePerlCommand($hash,$s2) if !$noEval;
+    }
     #Log3('xxx',1,"MQTT_GENERIC_BRIDGE:DEBUG:> eval2 done: $s2");
     if ($@) {
       Log3($hash,2,"MQTT_GENERIC_BRIDGE: evalValue: user value ('".$str."'') eval error: ".$@);
@@ -2702,15 +2714,14 @@ sub publishDeviceUpdate { #($$$$$) {
               #if(!defined($defMap->{'room'})) {
               #  $defMap->{'room'} = AttrVal($devn,'room','');
               #}
-              if(!defined($defMap->{'uid'}) and defined($defs{$devn})) {
-                $defMap->{'uid'} = $defs{$devn}->{'FUUID'} // q{};
-                #$defMap->{'uid'} = '' unless defined $defMap->{'uid'};
-              }
+          if(!defined($defMap->{'uid'}) and defined($defs{$devn})) {
+            $defMap->{'uid'} = $defs{$devn}->{'FUUID'} // q{};
+            #$defMap->{'uid'} = '' unless defined $defMap->{'uid'};
+          }
               #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> DEBUG: >>> expression: $expression : ".Dumper($defMap));
-              my $ret = _evalValue2($hash,$expression,{'topic'=>$topic,'device'=>$devn,'reading'=>$reading,'name'=>$name,'time'=>TimeNow(),%$defMap},1);
+          my $ret = _evalValue2($hash,$expression,{'topic'=>$topic,'device'=>$devn,'reading'=>$reading,'name'=>$name,'time'=>TimeNow(),%$defMap},1);
           #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> DEBUG: <<< expression: ".Dumper($ret));
-          #$ret = eval($ret);
-          $ret = AnalyzePerlCommand($hash,$ret);
+          $ret = eval{$ret}; #no AnalyzePerlCommand seems to be necessary here; wondering if this ist even necessary
 
               #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> DEBUG: <<< eval expression: ".Dumper($ret));
           if(ref($ret) eq 'HASH') {
@@ -2728,7 +2739,7 @@ sub publishDeviceUpdate { #($$$$$) {
           if ($@) {
             Log3($hash->{NAME},2,"MQTT_GENERIC_BRIDGE: [$hash->{NAME}] error while evaluating expression ('".$expression."'') eval error: ".$@);
           }
-          #use strict "refs";
+          #use strict "refs"; # as stricture rule is only blocked in lexical context, this is not needed at all
         }
 
         my $updated = 0;
@@ -3052,12 +3063,29 @@ sub onmessage {
           # es sei denn, Variable $value wurde geaendert, dann hat die Aenderung Vorrang.
           # Rueckgabewert wird ignoriert, falls dieser ein Array ist. 
           # Bei einem Hash werden Paare als Reading-Wert Paare gesetzt (auch set (stopic), attr (atopic))
-          #no strict "refs";
-          #local $@;
+          no strict "refs";
+          local $@;
           #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] eval ($expression) !!!");
           my $value = $message;
+          
+          my $ret;
+          if (0) {
+          $ret = eval($expression);
           #my $ret = eval($expression);
-          my $ret = AnalyzePerlCommand($hash,$expression);
+          } else {
+          my %specials = (
+            '$device'   => $device,
+            '$reading'  => $reading,
+            '$value'    => $value,
+            '$message'  => $message,
+          );
+          map { my $key =  $_; $key =~ s{\$}{\\\$}gxms;
+            my $val = $specials{$_};
+            $expression =~ s{$key}{$val}gxms
+          } keys %specials;
+          $ret = AnalyzePerlCommand($hash,$expression);
+          #my $ret = AnalyzePerlCommand($hash,$expression);
+          }
           
           if(ref($ret) eq 'HASH') {
             $redefMap = $ret;
@@ -3075,7 +3103,7 @@ sub onmessage {
           if ($@) {
             Log3($hash->{NAME},2,"MQTT_GENERIC_BRIDGE: [$hash->{NAME}] onmessage: error while evaluating expression ('".$expression."'') eval error: ".$@);
           }
-          #use strict "refs";
+          #use strict "refs"; # obsolete
         }
 
         #next unless defined $device;
