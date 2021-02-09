@@ -2719,9 +2719,10 @@ sub publishDeviceUpdate { #($$$$$) {
             #$defMap->{'uid'} = '' unless defined $defMap->{'uid'};
           }
               #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> DEBUG: >>> expression: $expression : ".Dumper($defMap));
-          my $ret = _evalValue2($hash,$expression,{'topic'=>$topic,'device'=>$devn,'reading'=>$reading,'name'=>$name,'time'=>TimeNow(),%$defMap},1);
+          # my $ret = _evalValue2($hash,$expression,{'topic'=>$topic,'device'=>$devn,'reading'=>$reading,'name'=>$name,'time'=>TimeNow(),%$defMap},1);
+          my $ret = _evalValue2($hash,$expression,{'topic'=>$topic,'device'=>$devn,'reading'=>$reading,'name'=>$name,'time'=>TimeNow(), 'value'=>$value,%$defMap},1);
           #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> DEBUG: <<< expression: ".Dumper($ret));
-          $ret = eval{$ret}; #no AnalyzePerlCommand seems to be necessary here; wondering if this ist even necessary
+          $ret = AnalyzePerlCommand($hash, $ret);
 
               #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> DEBUG: <<< eval expression: ".Dumper($ret));
           if(ref($ret) eq 'HASH') {
@@ -3091,7 +3092,7 @@ sub onmessage {
             $redefMap = $ret;
           } elsif(ref($ret) eq 'ARRAY') {
             # ignore
-          #} elsif($value ne $message) { #Beta-User: dürfte wegen "my $value = $message;" #2894 nich vorkommen!
+          } elsif($value ne $message) { #Beta-User: dürfte wegen "my $value = $message;" #2894 nich vorkommen!
 
           #  $message = $value;
           #} elsif(!defined($ret)) { #Beta-User: müsste dasselbe sein wie der reine "else"-Zweig!
