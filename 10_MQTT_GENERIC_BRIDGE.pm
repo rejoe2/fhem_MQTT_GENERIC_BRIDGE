@@ -853,7 +853,7 @@ sub isConnected {
   my $hash = shift // return 0;
   return MQTT::isConnected($hash->{IODev}) if isIODevMQTT($hash); #if $hash->{+HELPER}->{+IO_DEV_TYPE} eq 'MQTT';
 
-  return 1 if isIODevMQTT2($hash);
+  return 1 if isIODevMQTT2($hash); #might need review, see https://forum.fhem.de/index.php/topic,115279.msg1130603.html#msg1130603
   # ich weiß nicht, ob das eine gute Idee ist, zu prüfen, evtl. wird FHEM-Standard-writeBuffef für das Senden nach dem Connect selbst sorgen
   # in diesem Fall koenne wir annehmen, dass immer connected ist und keine eigene Warteschlangen verwenden
   # my $iodt = retrieveIODevType($hash);
@@ -2863,7 +2863,8 @@ sub ioDevConnect {
 
   # resend stored msgs => doPublish (...., undef)
   my $queue = $hash->{+HELPER}->{+HS_PROP_NAME_PUB_OFFLINE_QUEUE};
-  if (defined($queue)) {
+  return if !$queue; 
+  #if (defined($queue)) {
     for my $topic (keys %{$queue}) {
       my $topicQueue = $queue->{$topic};
       my $topicRec = undef;
@@ -2878,7 +2879,7 @@ sub ioDevConnect {
         updatePubTime($hash,$devn,$reading) if !defined $r;
       }
     }
-  }
+  #}
   return;
 }
 
