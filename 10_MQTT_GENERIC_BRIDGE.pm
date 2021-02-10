@@ -406,7 +406,7 @@ use GPUtils qw(:all);    #Beta-User: really all?
 ##   $gets{"debugReinit"}="noArg";
 #}
 
-my $useOldEval = 1;
+my $useOldEval = 0;
 
 my $cvsid = '$Id: 10_MQTT_GENERIC_BRIDGE.pm 23653 2021-01-31 21:34:39Z hexenmeister $';
 my $VERSION = "version 1.3.1 by hexenmeister\n$cvsid";
@@ -1322,10 +1322,10 @@ sub getDevicePublishRecIntern { #($$$$$$$) {
   $combined->{'base'} = '' unless defined $combined->{'base'}; # base leer anlegen wenn nicht definiert
 
   if(defined($topic) and ($topic =~ m/^{.*}$/)) {
-    $topic = _evalValue2($hash,$topic,{'topic'=>$topic,'device'=>$dev,'reading'=>$reading,'name'=>$name,'postfix'=>$postFix,%$combined}) if defined $topic;
+    $topic = _evalValue2($hash,$topic,{'topic'=>$topic,'device'=>$dev,'reading'=>$reading,'name'=>$name,'postfix'=>$postFix,%$combined});# if defined $topic;
   }
   if(defined($atopic) and ($atopic =~ m/^{.*}$/)) {
-    $atopic = _evalValue2($hash,$atopic,{'topic'=>$atopic,'device'=>$dev,'reading'=>$reading,'name'=>$name,'postfix'=>$postFix,%$combined}) if defined $atopic;
+    $atopic = _evalValue2($hash,$atopic,{'topic'=>$atopic,'device'=>$dev,'reading'=>$reading,'name'=>$name,'postfix'=>$postFix,%$combined});# if defined $atopic;
   }
 
   return {'topic'=>$topic,'atopic'=>$atopic,'qos'=>$qos,'retain'=>$retain,
@@ -1482,8 +1482,8 @@ sub _evalValue2 {
     my $s1 = $1 // q{}; #$s1='' unless defined $s1;
     my $s2 = $2 // q{}; #$s2='' unless defined $s2;
     my $s3 = $3 // q{}; #$s3='' unless defined $s3;
-    no strict "refs";
-    local $@;
+    #no strict "refs";
+    #local $@;
     my $base = q{};
     my $device = q{};
     my $reading = q{};
@@ -1515,28 +1515,37 @@ sub _evalValue2 {
     }
     #Log3('xxx',1,"MQTT_GENERIC_BRIDGE:DEBUG:> eval2 expr: $s2");
     if ($useOldEval) {
+    no strict "refs";
+    local $@;    
     $s2 = eval($s2) if !$noEval; 
     } else {
-    my %specials = (
-         '$base'     => $base,
-         '$device'   => $device,
-         '$reading'  => $reading,
-         '$name'     => $name,
-    );
-    map { my $key =  $_; $key =~ s{\$}{\\\$}gxms;
-      my $val = $specials{$_};
-      $s2 =~ s{$key}{$val}gxms
-    } keys %specials;
-    $s2 = AnalyzePerlCommand($hash,$s2) if !$noEval;
+      my %specials = (
+        '$base'     => $base,
+        '$device'   => $device,
+        '$reading'  => $reading,
+        '$name'     => $name,
+      );
+      map { my $key =  $_; $key =~ s{\$}{\\\$}gxms;
+        my $val = $specials{$_};
+        $s2 =~ s{$key}{$val}gxms
+      } keys %specials;
+      if ($s1 =~ m{expression}x) {
+        $s2 = AnalyzePerlCommand($hash,$s2) if !$noEval;
+      } 
+      $s2 =~ s{\A\{(.*)\}\z}{$1}x;
+      $s2 =~ s{\A"(.*)"\z}{$1}x;
     }
     #Log3('xxx',1,"MQTT_GENERIC_BRIDGE:DEBUG:> eval2 done: $s2");
-    if ($@) {
+    if (!$useOldEval && $s2 =~ m{at..eval.\d+..at.line.\d+}gx) {
+      Log3($hash,2,"MQTT_GENERIC_BRIDGE: evalValue: user value ('".$str."'') eval error: $s2");
+      $ret = undef;
+    } elsif ($@) {
       Log3($hash,2,"MQTT_GENERIC_BRIDGE: evalValue: user value ('".$str."'') eval error: ".$@);
       $ret=$s1.''.$s3;
     } else {
       $ret = $s1.$s2.$s3;
     }
-    $ret = _evalValue2($hash, $ret, $map, $noEval) if !$noEval;
+    $ret = _evalValue2($hash, $ret, $map, $noEval) if !$noEval && $ret;
   }
   return $ret;
 }
@@ -2728,7 +2737,13 @@ sub publishDeviceUpdate { #($$$$$) {
             $ret = eval($ret);
           } else { 
             $ret = _evalValue2($hash,$expression,{'topic'=>$topic,'device'=>$devn,'reading'=>$reading,'name'=>$name,'time'=>TimeNow(), 'value'=>$value,%$defMap},1);
-            $ret = AnalyzePerlCommand($hash, $ret);
+            if ( $ret =~ m{at..eval.[0-9]+..line.[0-9]+}gxms ) {
+              $ret = undef;
+            } else {
+              $ret = AnalyzePerlCommand($hash, $ret);
+              $ret = undef if $ret =~ m{at..eval.[0-9]+..line.[0-9]+}gxms;
+              ;
+            }
           }
           #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> DEBUG: <<< expression: ".Dumper($ret));
           
@@ -3094,7 +3109,10 @@ sub onmessage {
             $expression =~ s{$key}{$val}gxms
           } keys %specials;
           $ret = AnalyzePerlCommand($hash,$expression);
-          #my $ret = AnalyzePerlCommand($hash,$expression);
+          
+          if ($ret =~ m{at..eval.[0-9]+..line.[0-9]+}gxms ) {
+            $ret = undef;
+          }
           }
           
           if(ref($ret) eq 'HASH') {
