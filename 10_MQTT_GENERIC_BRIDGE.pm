@@ -2622,9 +2622,12 @@ sub doPublish { #($$$$$$$$) {
     # TODO qos / retain ? 
     $topic.=':r' if $retain;
     IOWrite($hash, "publish", $topic.' '.$message);
-    readingsSingleUpdate($hash,"transmission-state","outgoing publish sent",1);
     $hash->{+HELPER}->{+HS_PROP_NAME_OUTGOING_CNT}++;
-    readingsSingleUpdate($hash,"outgoing-count",$hash->{+HELPER}->{+HS_PROP_NAME_OUTGOING_CNT},1);
+    readingsBeginUpdate($hash);
+    readingsBulkUpdate($hash,'transmission-state','outgoing publish sent');
+    $hash->{+HELPER}->{+HS_PROP_NAME_OUTGOING_CNT}++;
+    readingsBulkUpdate($hash,'outgoing-count',$hash->{+HELPER}->{+HS_PROP_NAME_OUTGOING_CNT});
+    readingsEndUpdate($hash,1);
     return;
   } elsif (isIODevMQTT($hash)) { #elsif ($hash->{+HELPER}->{+IO_DEV_TYPE} eq 'MQTT') {
     #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] doPublish for $device, $reading, topic: $topic, message: $message");
@@ -2632,9 +2635,11 @@ sub doPublish { #($$$$$$$$) {
     if(defined($topic) and defined($message)) {
       #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] send_publish: topic: $topic, message: $message");
       $msgid = send_publish($hash->{IODev}, topic => $topic, message => $message, qos => $qos, retain => $retain);
-      readingsSingleUpdate($hash,"transmission-state","outgoing publish sent",1);
       $hash->{+HELPER}->{+HS_PROP_NAME_OUTGOING_CNT}++;
-      readingsSingleUpdate($hash,"outgoing-count",$hash->{+HELPER}->{+HS_PROP_NAME_OUTGOING_CNT},1);
+      readingsBeginUpdate($hash);
+      readingsBulkUpdate($hash,'transmission-state','outgoing publish sent');
+      readingsBulkUpdate($hash,'outgoing-count',$hash->{+HELPER}->{+HS_PROP_NAME_OUTGOING_CNT});
+      readingsEndUpdate($hash,1);
       #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] publish: $topic => $message");
       return;
     }
@@ -2794,94 +2799,68 @@ sub Attr { #($$$$) {
   my ($command,$name,$attribute,$value) = @_;
 
   my $hash = $defs{$name} // return;
-  ATTRIBUTE_HANDLER: {
-    # Steuerattribute
-    $attribute eq CTRL_ATTR_NAME_GLOBAL_PREFIX.CTRL_ATTR_NAME_DEFAULTS and do {
-      if ($command eq "set") {
-        RefreshGlobalTable($hash, $attribute, $value);
-      } else {
-        RefreshGlobalTable($hash, $attribute, undef);
-      }
-      last;
-    };
-    $attribute eq CTRL_ATTR_NAME_GLOBAL_PREFIX.CTRL_ATTR_NAME_ALIAS and do {
-      if ($command eq "set") {
-        RefreshGlobalTable($hash, $attribute, $value);
-      } else {
-        RefreshGlobalTable($hash, $attribute, undef);
-      }
-      last;
-    };
-    $attribute eq CTRL_ATTR_NAME_GLOBAL_PREFIX.CTRL_ATTR_NAME_PUBLISH and do {
-      if ($command eq "set") {
-        RefreshGlobalTable($hash, $attribute, $value);
-      } else {
-        RefreshGlobalTable($hash, $attribute, undef);
-      }
-      last;
-    };
-    $attribute eq CTRL_ATTR_NAME_GLOBAL_TYPE_EXCLUDE and do {
-      if ($command eq "set") {
-        defineGlobalTypeExclude($hash,$value);
-      } else {
-        defineGlobalTypeExclude($hash,undef);
-      }
-      last;
-    };
-    $attribute eq CTRL_ATTR_NAME_GLOBAL_DEV_EXCLUDE and do {
-      if ($command eq "set") {
-        defineGlobalDevExclude($hash,$value);
-      } else {
-        defineGlobalDevExclude($hash,undef);
-      }
-      last;
-    };
-     # $attribute eq "XXX" and do {
-    #   if ($command eq "set") {
-    #     #$hash->{publishState} = $value;
-    #   } else {
-    #     #delete $hash->{publishState};
-    #   }
-    #   last;
-    # };
-    my $prefix = $hash->{+HS_PROP_NAME_PREFIX};
-    (($attribute eq $prefix.CTRL_ATTR_NAME_DEFAULTS) or 
+  
+  # Steuerattribute
+  if (   $attribute eq CTRL_ATTR_NAME_GLOBAL_PREFIX.CTRL_ATTR_NAME_DEFAULTS 
+      || $attribute eq CTRL_ATTR_NAME_GLOBAL_PREFIX.CTRL_ATTR_NAME_ALIAS
+      || $attribute eq CTRL_ATTR_NAME_GLOBAL_PREFIX.CTRL_ATTR_NAME_PUBLISH) {
+    if ($command eq "set") {
+      RefreshGlobalTable($hash, $attribute, $value);
+    } else {
+      RefreshGlobalTable($hash, $attribute, undef);
+    }
+    return;
+  }
+  if ($attribute eq CTRL_ATTR_NAME_GLOBAL_TYPE_EXCLUDE) {
+    if ($command eq "set") {
+      defineGlobalTypeExclude($hash,$value);
+    } else {
+      defineGlobalTypeExclude($hash,undef);
+    }
+    return;
+  }
+  if ($attribute eq CTRL_ATTR_NAME_GLOBAL_DEV_EXCLUDE) {
+    if ($command eq "set") {
+      defineGlobalDevExclude($hash,$value);
+    } else {
+      defineGlobalDevExclude($hash,undef);
+    }
+    return;
+  }
+  my $prefix = $hash->{+HS_PROP_NAME_PREFIX};
+  if (($attribute eq $prefix.CTRL_ATTR_NAME_DEFAULTS) or 
       ($attribute eq $prefix.CTRL_ATTR_NAME_ALIAS) or 
       ($attribute eq $prefix.CTRL_ATTR_NAME_PUBLISH) or 
       ($attribute eq $prefix.CTRL_ATTR_NAME_SUBSCRIBE) or 
       ($attribute eq $prefix.CTRL_ATTR_NAME_IGNORE) or
-      ($attribute eq $prefix.CTRL_ATTR_NAME_FORWARD)
-    ) and do {
-      if ($command eq "set") {
-        return "this attribute is not allowed here";
-      }
-      last;
-    };
+      ($attribute eq $prefix.CTRL_ATTR_NAME_FORWARD)) {
+    if ($command eq "set") {
+      return "this attribute is not allowed here";
+    }
+    return;
+    }
     
     # Gateway-Device
-    $attribute eq "IODev" and do {
-      my $ioDevType = undef;
-      $ioDevType = $defs{$value}{TYPE} if defined ($value) and defined ($defs{$value});
-      $hash->{+HELPER}->{+IO_DEV_TYPE} = $ioDevType;
+  if ($attribute eq "IODev") {
+    my $ioDevType = undef;
+    $ioDevType = $defs{$value}{TYPE} if defined ($value) and defined ($defs{$value});
+    $hash->{+HELPER}->{+IO_DEV_TYPE} = $ioDevType;
       
-      if ($command eq "set") {
-        my $oldValue = $attr{$name}{IODev};
-        if ($init_done) {
-          unless (defined ($oldValue) and ($oldValue eq $value) ) {
-            #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] attr: change IODev");
-            MQTT::client_stop($hash) if defined($attr{$name}{IODev}) and ($attr{$name}{IODev} eq 'MQTT');
-            $attr{$name}{IODev} = $value;
-            firstInit($hash);
-          }
-        }
-      } else {
-        if ($init_done) {
-          MQTT::client_stop($hash) if defined ($ioDevType) and ($ioDevType eq 'MQTT');
+    if ($command eq "set") {
+      my $oldValue = $attr{$name}{IODev};
+      if ($init_done) {
+        unless (defined ($oldValue) and ($oldValue eq $value) ) {
+          #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] attr: change IODev");
+          MQTT::client_stop($hash) if defined($attr{$name}{IODev}) and ($attr{$name}{IODev} eq 'MQTT');
+          $attr{$name}{IODev} = $value;
+          firstInit($hash);
         }
       }
-        
-      last;
-    };
+    } else {
+      if ($init_done) {
+         MQTT::client_stop($hash) if defined ($ioDevType) and ($ioDevType eq 'MQTT');
+      }
+    }
     return;
   }
   return;
@@ -2977,12 +2956,11 @@ sub doSetUpdate { #($$$$$) {
       $dhash->{'.mqttGenericBridge_triggeredReading_val'}=$message unless $doForward;
     }
     readingsBulkUpdate($dhash,$reading,$message);
+    $hash->{+HELPER}->{+HS_PROP_NAME_UPDATE_R_CNT}++; 
+    readingsBulkUpdate($hash,"updated-reading-count",$hash->{+HELPER}->{+HS_PROP_NAME_UPDATE_R_CNT});
     readingsEndUpdate($dhash,1);
     #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE: [$hash->{NAME}] setUpdate: update: $reading = $message");
     # wird in 'notify' entfernt # delete $dhash->{'.mqttGenericBridge_triggeredReading'};
-
-    $hash->{+HELPER}->{+HS_PROP_NAME_UPDATE_R_CNT}++; 
-    readingsSingleUpdate($hash,"updated-reading-count",$hash->{+HELPER}->{+HS_PROP_NAME_UPDATE_R_CNT},1);
     return;
   } elsif($mode eq 'A') {
     CommandAttr(undef, "$device $reading $message");
