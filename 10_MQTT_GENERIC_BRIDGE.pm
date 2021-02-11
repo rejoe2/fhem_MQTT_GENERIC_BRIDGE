@@ -2951,12 +2951,13 @@ sub doSetUpdate { #($$$$$) {
     # R - Normale Topic (beim Empfang nicht weiter publishen)
     # T - Selt-Trigger-Topic (Sonderfall, auch wenn gerade empfangen, kann weiter getriggert/gepublisht werden. Vorsicht! Gefahr von 'Loops'!)
     readingsBeginUpdate($dhash);
-    if ($mode eq 'R') {
-      $dhash->{'.mqttGenericBridge_triggeredReading'}=$reading unless $doForward;
-      $dhash->{'.mqttGenericBridge_triggeredReading_val'}=$message unless $doForward;
-    }
-    readingsBulkUpdate($dhash,$reading,$message);
+    #if ($mode eq 'R') {
+      $dhash->{'.mqttGenericBridge_triggeredReading'}=$reading if !$doForward;
+      $dhash->{'.mqttGenericBridge_triggeredReading_val'}=$message if !$doForward;
+    #}
     $hash->{+HELPER}->{+HS_PROP_NAME_UPDATE_R_CNT}++; 
+    readingsBeginUpdate($dhash);
+    readingsBulkUpdate($dhash,$reading,$message);
     readingsBulkUpdate($hash,"updated-reading-count",$hash->{+HELPER}->{+HS_PROP_NAME_UPDATE_R_CNT});
     readingsEndUpdate($dhash,1);
     #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE: [$hash->{NAME}] setUpdate: update: $reading = $message");
@@ -3076,6 +3077,7 @@ sub onmessage {
           $ret = eval($expression);
           #my $ret = eval($expression);
           } else {
+          $message=qq{'$message'};  
           my %specials = (
             '$device'   => $device,
             '$reading'  => $reading,
