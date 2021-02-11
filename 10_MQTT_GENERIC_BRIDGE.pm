@@ -22,7 +22,7 @@
 #     You should have received a copy of the GNU General Public License
 #     along with fhem.  If not, see <http://www.gnu.org/licenses/>.
 #
-# $Id: 10_MQTT_GENERIC_BRIDGE.pm 23653 2021-01-31 21:34:39Z hexenmeister $
+# $Id: 10_MQTT_GENERIC_BRIDGE.pm perlcritic-proposals Beta-User post 8866544  $
 #
 ###############################################################################
 
@@ -393,6 +393,7 @@ package MQTT::GENERIC_BRIDGE;
 use strict;
 use warnings;
 use AttrTemplate;
+use Carp qw(carp);
 ##no critic qw(prototype constant Package) #Beta-User: prototype might be discussed later
 
 use GPUtils qw(:all);
@@ -501,9 +502,8 @@ use constant {
 };
 
 
-sub MQTT_GENERIC_BRIDGE_Initialize($) {
-
-  my $hash = shift @_;
+sub MQTT_GENERIC_BRIDGE_Initialize {
+  my $hash = shift // return;
 
   # Consumer
   $hash->{DefFn}    = "MQTT::GENERIC_BRIDGE::Define";
@@ -540,7 +540,7 @@ sub MQTT_GENERIC_BRIDGE_Initialize($) {
     # Beim ModulReload Deviceliste loeschen (eig. nur fuer bei der Entwicklung nuetzich)
     #if($DEBUG) {
     #if($hash->{'.debug'}) {
-      foreach my $d (keys %defs) {
+      for my $d (keys %defs) {
         if(defined($defs{$d}{TYPE})) {
           if($defs{$d}{TYPE} eq "MQTT_GENERIC_BRIDGE") {
             $defs{$d}{".initialized"} = 0;
@@ -550,57 +550,31 @@ sub MQTT_GENERIC_BRIDGE_Initialize($) {
     #}
 
     $hash->{'.debug'} = '0';
+    return;       
 }
-
-
-sub publishDeviceUpdate($$$$$);
-sub UpdateSubscriptionsSingleDevice($$);
-sub InitializeDevices($);
-sub firstInit($);
-sub removeOldUserAttr($;$$$);
-sub IsObservedAttribute($$);
-sub defineGlobalTypeExclude($;$);
-sub defineGlobalDevExclude($;$);
-sub defineDefaultGlobalExclude($);
-sub isTypeDevReadingExcluded($$$$$);
-sub getDevicePublishRecIntern($$$$$$$);
-sub getDevicePublishRec($$$);
-sub isConnected($);
-sub ioDevConnect($);
-sub ioDevDisconnect($);
-sub updateDevCount($);
-sub retrieveIODevName($);
-sub retrieveIODevType($);
-sub isIODevMQTT2($);
-sub isIODevMQTT2_CLIENT($);
-sub isIODevMQTT($);
-sub initUserAttr($);
-sub createRegexpForTopic($);
-sub isDebug($);
-sub checkPublishDeviceReadingsUpdates($$);
-sub RefreshGlobalTableAll($);
-sub _evalValue2($$;$$);
 
 ###############################################################################
 # prueft, ob debug Attribute auf 1 gesetzt ist (Debugmode)
-sub isDebug($) {
-  my ($hash) = @_;
-  return AttrVal($hash->{NAME},"debug",0);  
+sub isDebug {
+  my $hash = shift // return;
+  return AttrVal($hash->{NAME},'debug',0);  
 }
 
 # Entfernt Leerzeichen vom string vorne und hinten
 sub  trim { my $s = shift; $s =~ s/^\s+|\s+$//g; return $s }
 
 # prueft, ob der erste gegebene String mit dem zweiten anfaengt
-sub startsWith($$) {
-  my($str, $subStr) = @_;
+sub startsWith {
+  my $str = shift;
+  my $subStr = shift // return 0;
   return substr($str, 0, length($subStr)) eq $subStr;
 }
 
 ###############################################################################
 # Device define
-sub Define() {
-  my ($hash, $def) = @_;
+sub Define {
+  my $hash = shift;
+  my $def  = shift // return;
   # Definition :=> defmod mqttGeneric MQTT_GENERIC_BRIDGE [prefix] [devspec,[devspec]]
   my($name, $type, $prefix, @devspeca) = split("[ \t][ \t]*", $def);
   # restlichen Parameter nach Leerzeichen trennen
@@ -667,32 +641,33 @@ sub Define() {
 }
 
 # Device undefine
-sub Undefine() {
-  my ($hash) = @_;
+sub Undefine {
+  my $hash = shift // return;
   RemoveInternalTimer($hash);
-  MQTT::client_stop($hash) if isIODevMQTT($hash); #if defined($hash->{+HELPER}->{+IO_DEV_TYPE}) and $hash->{+HELPER}->{+IO_DEV_TYPE} eq 'MQTT';
-  removeOldUserAttr($hash);
+  MQTT::client_stop($hash) if isIODevMQTT($hash); 
+  return removeOldUserAttr($hash);
 }
 
 # erstellt / loescht die notwendigen userattr-Werte (die Bridge-Steuerattribute an den Geraeten laut devspec)
-sub refreshUserAttr($) {
-  my ($hash) = @_;
+sub refreshUserAttr {
+  my $hash = shift // return;
   my $oldprefix = $hash->{+HS_PROP_NAME_PREFIX};
   my $olddevspec = $hash->{+HS_PROP_NAME_DEVSPEC};
   my $newdevspec = initUserAttr($hash);
   removeOldUserAttr($hash,$oldprefix,$olddevspec,$newdevspec) if (defined ($olddevspec));
+  return;       
 }
 
 # liefert TYPE des IODev, wenn definiert (MQTT; MQTT2,..)
-sub retrieveIODevName($) {
-  my ($hash) = @_;
+sub retrieveIODevName {
+  my $hash = shift // return;
   my $iodn = AttrVal($hash->{NAME}, "IODev", undef);
   return $iodn;
 }
 
 # liefert TYPE des IODev, wenn definiert (MQTT; MQTT2,..)
-sub retrieveIODevType($) {
-  my ($hash) = @_;
+sub retrieveIODevType {
+  my $hash = shift // return;
   
   return $hash->{+HELPER}->{+IO_DEV_TYPE} if defined $hash->{+HELPER}->{+IO_DEV_TYPE};
 
@@ -702,52 +677,50 @@ sub retrieveIODevType($) {
     $iodt = $defs{$iodn}{TYPE};
   }
   $hash->{+HELPER}->{+IO_DEV_TYPE} =  $iodt;
-  #return ($iodt, $iodn);
   return $iodt;
-  #return $hash->{+HELPER}->{+IO_DEV_TYPE};
 }
 
 # prueft, ob IODev MQTT-Instanz ist
-sub isIODevMQTT($) {
-  my ($hash) = @_;
+sub isIODevMQTT {
+  my $hash = shift // return;
   my $iodt = retrieveIODevType($hash);
   return 0 unless defined $iodt;
   return 0 unless $iodt eq 'MQTT';
   return 1;
 }
 
-sub checkIODevMQTT2($) {
-  my ($iodt) = @_;
-  return 0 unless defined $iodt;
+sub checkIODevMQTT2 {
+                  
+  my $iodt = shift // return 0;
   return 1 if $iodt eq 'MQTT2_SERVER';
   return 1 if $iodt eq 'MQTT2_CLIENT';
   return 0;
 }
 
-sub checkIODevMQTT2_CLIENT($) {
-  my ($iodt) = @_;
-  return 0 unless defined $iodt;
+sub checkIODevMQTT2_CLIENT {
+                  
+  my $iodt = shift // return 0;
   return 1 if $iodt eq 'MQTT2_CLIENT';
   return 0;
 }
 
 # prueft, ob IODev MQTT2-Instanz ist
-sub isIODevMQTT2($) {
-  my ($hash) = @_;
+sub isIODevMQTT2 {
+  my $hash = shift // return 0;
   my $iodt = retrieveIODevType($hash);
   return checkIODevMQTT2($iodt);
 }
 
 # prueft, ob IODev MQTT2_CLIENT-Instanz ist
-sub isIODevMQTT2_CLIENT($) {
-  my ($hash) = @_;
+sub isIODevMQTT2_CLIENT {
+  my $hash = shift // return 0;
   my $iodt = retrieveIODevType($hash);
   return checkIODevMQTT2_CLIENT($iodt);
 }
 
 # Fuegt notwendige UserAttr hinzu
-sub initUserAttr($) {
-  my ($hash) = @_;
+sub initUserAttr {
+  my $hash = shift // return;
   # wenn bereits ein prefix bestand, die userAttr entfernen : HS_PROP_NAME_PREFIX_OLD != HS_PROP_NAME_PREFIX
   my $prefix = $hash->{+HS_PROP_NAME_PREFIX};
   my $devspec = $hash->{+HS_PROP_NAME_DEVSPEC};
@@ -761,7 +734,7 @@ sub initUserAttr($) {
   #Log3($hash->{NAME},5,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] initUserAttr: new list: ".Dumper(@devices));
   #Log3($hash->{NAME},5,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] initUserAttr: addToDevAttrList: $prefix");
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] initUserAttr> devspec: '$devspec', array: ".Dumper(@devices));
-  foreach my $dev (@devices) {
+  for my $dev (@devices) {
     addToDevAttrList($dev, $prefix.CTRL_ATTR_NAME_DEFAULTS.":textField-long");
     addToDevAttrList($dev, $prefix.CTRL_ATTR_NAME_ALIAS.":textField-long");
     addToDevAttrList($dev, $prefix.CTRL_ATTR_NAME_PUBLISH.":textField-long");
@@ -774,8 +747,8 @@ sub initUserAttr($) {
 
 # Erstinitialization. 
 # Variablen werden im HASH abgelegt, userattr der betroffenen Geraete wird erweitert, MQTT-Initialisierungen.
-sub firstInit($) {
-  my ($hash) = @_;
+sub firstInit {
+  my $hash = shift // return;
   
   # IO    
   AssignIoPort($hash);
@@ -789,7 +762,7 @@ sub firstInit($) {
   if ($init_done) {
     $hash->{+HELPER}->{+HS_FLAG_INITIALIZED} = 0;
 
-    return unless defined(AttrVal($hash->{NAME},"IODev",undef));
+    return if !defined(AttrVal($hash->{NAME},'IODev',undef));
 
     # Default-Excludes
     defineDefaultGlobalExclude($hash);
@@ -828,8 +801,8 @@ sub firstInit($) {
 }
 
 # Vom Timer periodisch aufzurufende Methode
-sub timerProc($) {
-  my ($hash, $refresh_all) = @_;
+sub timerProc {
+  my $hash = shift // return;
   my $name = $hash->{NAME};
 
   # TODO: Resend
@@ -839,15 +812,16 @@ sub timerProc($) {
   if(defined($hash->{+HELPER}->{+HS_PROP_NAME_INTERVAL}) && ($hash->{+HELPER}->{+HS_PROP_NAME_INTERVAL} ne '0')) {
     InternalTimer(gettimeofday()+$hash->{+HELPER}->{+HS_PROP_NAME_INTERVAL}, "MQTT::GENERIC_BRIDGE::timerProc", $hash, 0);
   }
+  return;
 }
 
 # prueft, ob Verbindung zum MQTT-Broker besteht.
 # Parameter: Bridge-Hash
-sub isConnected($) {
-  my $hash = shift;
+sub isConnected {
+  my $hash = shift // return 0;
   return MQTT::isConnected($hash->{IODev}) if isIODevMQTT($hash); #if $hash->{+HELPER}->{+IO_DEV_TYPE} eq 'MQTT';
 
-  return 1 if isIODevMQTT2($hash);
+  return 1 if isIODevMQTT2($hash); #Beta-User: might need review, see https://forum.fhem.de/index.php/topic,115279.msg1130603.html#msg1130603
   # ich weiß nicht, ob das eine gute Idee ist, zu prüfen, evtl. wird FHEM-Standard-writeBuffef für das Senden nach dem Connect selbst sorgen
   # in diesem Fall koenne wir annehmen, dass immer connected ist und keine eigene Warteschlangen verwenden
   # my $iodt = retrieveIODevType($hash);
@@ -863,17 +837,17 @@ sub isConnected($) {
 }
 
 # Berechnet Anzahl der ueberwachten Geraete neu
-sub updateDevCount($) {
-  my $hash = shift;
+sub updateDevCount {
+  my $hash = shift // return;
   # device count
   my $size = 0;
-  foreach my $dname (sort keys %{$hash->{+HS_TAB_NAME_DEVICES}}) {
+  for my $dname (sort keys %{$hash->{+HS_TAB_NAME_DEVICES}}) {
     if($dname ne ":global") {
       $size++;
     }
   }
   $hash->{+HELPER}->{+HS_PROP_NAME_DEVICE_CNT} = $size;
-  readingsSingleUpdate($hash,"device-count",$size,1);
+  return readingsSingleUpdate($hash,"device-count",$size,1);
 }
 
 # loescht angelegte userattr aus den jeweiligen Devices (oder aus dem global-Device)
@@ -882,27 +856,32 @@ sub updateDevCount($) {
 #   $prefix:  Attribute (publish, subscribe, defaults und alis) mit diesem Prefix werden entfernt
 #   $devspec: definiert Geraete, deren userattr bereinigt werden
 # Die letzten zwei Parameter sind optinal, fehlen sie, werden werte aus dem Hash genommen.
-sub removeOldUserAttr($;$$$) {
-  my ($hash, $prefix, $devspec, $newDevices) = @_;
+sub removeOldUserAttr { #($;$$$) {
+  #my ($hash, $prefix, $devspec, $newDevices) = @_;
+  my $hash       = shift // return;
+  my $prefix     = shift // $hash->{+HS_PROP_NAME_PREFIX};
+  my $devspec    = shift // $hash->{+HS_PROP_NAME_DEVSPEC};
+  my $newDevices = shift; #Einleitung passt irgendwie nicht...
+
   #Log3($hash->{NAME},5,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] newDevices: ".Dumper($newDevices));
 
-  $prefix = $hash->{+HS_PROP_NAME_PREFIX} unless defined $prefix;
+  #$prefix = $hash->{+HS_PROP_NAME_PREFIX} unless defined $prefix;
   # Pruefen, on ein weiteres Device (MQTT_GENERIC_BRIDGE) mit dem selben Prefix existiert (waere zwar Quatsch, aber dennoch)
   my @bridges = devspec2array("TYPE=MQTT_GENERIC_BRIDGE");
   my $name = $hash->{NAME};
-  foreach my $dev (@bridges) {
+  for my $dev (@bridges) {
     if($dev ne $name) {
       my $aPrefix = $defs{$dev}->{+HS_PROP_NAME_PREFIX};
       return if ($aPrefix eq $prefix);
     }
   }
-  $devspec = $hash->{+HS_PROP_NAME_DEVSPEC} unless defined $devspec;
+  #$devspec = $hash->{+HS_PROP_NAME_DEVSPEC} unless defined $devspec;
   $devspec = 'global' if ($devspec eq '.*');
   # kann spaeter auch delFromDevAttrList Methode genutzt werden
   my @devices = devspec2array($devspec);
 
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] removeOldUserAttr> devspec: $devspec, array: ".Dumper(@devices));
-  foreach my $dev (@devices) {
+  for my $dev (@devices) {
     next if grep {$_ eq $dev} @{$newDevices};
     #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] removeOldUserAttr> delete: from $dev ".$prefix.CTRL_ATTR_NAME_DEFAULTS);
     # O> subs aus fhem.pl nicht nutzen, da diese auch die Steuerungsattribute mit loescht. Vor allem bei global ist das ein Problem
@@ -936,11 +915,13 @@ sub removeOldUserAttr($;$$$) {
       }
     }
   }
+  return;                                                      
 }
 
 # Prueft, ob der gegebene Zeichenkette einem der zu ueberwachenden Device-Attributennamen entspricht.
-sub IsObservedAttribute($$) {
-  my ($hash, $aname) = @_;
+sub IsObservedAttribute {
+  my $hash  = shift;
+  my $aname = shift // return;
   my $prefix = $hash->{+HS_PROP_NAME_PREFIX};
 
   if($aname eq $prefix.CTRL_ATTR_NAME_DEFAULTS) {
@@ -971,9 +952,12 @@ sub IsObservedAttribute($$) {
 #   $dev:     Devicename
 #   $valMap:  Map mit den Werten (Quelle)
 #   $key:     Schluessel. Unter Inhalt aus dem Quellmap unter diesem Schluessel wird in Zielmap kopiert.
-sub _takeDefaults($$$$) {
-  my ($map, $dev, $valMap, $key) = @_;
-  my $pr = '';
+sub _takeDefaults { #($$$$) {
+  my $map    = shift;
+  my $dev    = shift;
+  my $valMap = shift;
+  my $key    = shift // return;
+  my $pr = q{};
   $pr = substr($key, 0, 4) if (length($key)>4);
   if(($pr eq 'sub:') or ($pr eq 'pub:')) {
   #if (defined($valMap->{$key})) {
@@ -985,20 +969,27 @@ sub _takeDefaults($$$$) {
     $map->{$dev}->{':defaults'}->{'pub:'.$key}=$valMap->{$key};
     $map->{$dev}->{':defaults'}->{'sub:'.$key}=$valMap->{$key};
   }
+  return;
 }
 
 # Erstellt Strukturen fuer 'Defaults' fuer ein bestimmtes Geraet.
 # Params: Bridge-Hash, Dev-Name (im Map, ist auch = DevName),
 #         Internes Map mit allen Definitionen fuer alle Gerate,
 #         Attribute-Value zum Parsen
-sub CreateSingleDeviceTableAttrDefaults($$$$) {
-  my($hash, $dev, $map, $attrVal) = @_;
+sub CreateSingleDeviceTableAttrDefaults { #($$$$) {
+  #my($hash, $dev, $map, $attrVal) = @_;
+  my $hash    = shift // return;
+  my $dev     = shift // carp q[No device name provided!] && return;
+  my $map     = shift // carp q[No devMapName provided!]  && return;
+  my $attrVal = shift; 
+  
   # collect defaults
   delete ($map->{$dev}->{':defaults'});
-  if(defined $attrVal) {
+  return if !defined $attrVal;
+  #if(defined $attrVal) {
     # format: [pub:|sub:]base=ha/wz/ [pub:|sub:]qos=0 [pub:|sub:]retain=0
-    my($unnamed, $named) = main::parseParams($attrVal,'\s',' ','='); #main::parseParams($attrVal);
-    foreach my $param (keys %{$named}) {
+    my($unnamed, $named) = main::parseParams($attrVal,'\s',' ','='); 
+    for my $param (keys %{$named}) {
       # my $pr = substr($param, 0, 4);
       # if($pr eq 'sub:' or $pr eq 'pub:') {
       #   $param = substr($param, 4);
@@ -1010,23 +1001,30 @@ sub CreateSingleDeviceTableAttrDefaults($$$$) {
     # _takeDefaults($map, $dev, $named, 'retain');
     # _takeDefaults($map, $dev, $named, 'expression');
     return defined($map->{$dev}->{':defaults'});
-  } else {
-    return;
-  }
+  #} else {
+  #  return;
+  #}
+  #return; #not needed if earlier if !defined statement is used
 }
 
 # Erstellt Strukturen fuer 'Alias' fuer ein bestimmtes Geraet.
 # Params: Bridge-Hash, Dev-Name (im Map, ist auch = DevName),
 #         Internes Map mit allen Definitionen fuer alle Gerate,
 #         Attribute-Value zum Parsen
-sub CreateSingleDeviceTableAttrAlias($$$$) {
-  my($hash, $dev, $map, $attrVal) = @_;
+sub CreateSingleDeviceTableAttrAlias { #($$$$) {
+  #my($hash, $dev, $map, $attrVal) = @_;
+  my $hash    = shift // return;
+  my $dev     = shift // carp q[No device name provided!] && return;
+  my $map     = shift // carp q[No devMapName provided!]  && return;
+  my $attrVal = shift; 
+  
   delete ($map->{$dev}->{':alias'});
-  if(defined $attrVal) {
+  return if !defined $attrVal;
+  #if(defined $attrVal) {
     # format [pub:|sub:]<reading>[=<newName>] ...
     my($unnamed, $named) = main::parseParams($attrVal,'\s',' ','='); #main::parseParams($attrVal);
     if(defined($named)){
-      foreach my $param (keys %{$named}) {
+      for my $param (keys %{$named}) {
         my $val = $named->{$param};
         my($pref,$name) = split(":",$param);
         if(defined($name)) {
@@ -1043,7 +1041,7 @@ sub CreateSingleDeviceTableAttrAlias($$$$) {
       }
       return defined($map->{$dev}->{':alias'});
     }
-  }
+  #}
   return;
 }
 
@@ -1053,12 +1051,19 @@ sub CreateSingleDeviceTableAttrAlias($$$$) {
 #         Attribute-Value zum Parsen
 # NB: stopic gibt es beim 'publish' nicht
 # ?: internal-topic? - keine Verwendung bis jetzt
-sub CreateSingleDeviceTableAttrPublish($$$$) {
-  my($hash, $dev, $map, $attrVal) = @_;
+sub CreateSingleDeviceTableAttrPublish { #($$$$) {
+  #my($hash, $dev, $map, $attrVal) = @_;
+  my $hash    = shift // return;
+  my $dev     = shift // carp q[No device name provided!] && return;
+  my $map     = shift // carp q[No devMapName provided!]  && return;
+  my $attrVal = shift; 
+  
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] CreateSingleDeviceTableAttrPublish: $dev, $attrVal, ".Dumper($map));
   # collect publish topics
   delete ($map->{$dev}->{':publish'});
-  if(defined $attrVal) {
+  
+  return if !defined $attrVal; 
+  #if(defined $attrVal)
     # format: 
     #   <reading|alias>:topic=<"static topic"|{evaluated (first time only) topic 
     #     (avialable vars: $base, $reading (oringinal name), $name ($reading oder alias))}>
@@ -1069,9 +1074,10 @@ sub CreateSingleDeviceTableAttrPublish($$$$) {
     #   *:topic=# same as *:topic={"$base/$reading"}
     my($unnamed, $named) = main::parseParams($attrVal,'\s',' ','=');
     #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] CreateSingleDeviceTableAttrPublish: parseParams: ".Dumper($named));
-    if(defined($named)){
+                                                                               return if !defined($named);
+    #if(defined($named)){
       my $autoResend = {};
-      foreach my $param (keys %{$named}) {
+      for my $param (keys %{$named}) {
         my $val = $named->{$param};
         my($name,$ident) = split(":",$param);
         if(!defined($ident) or !defined($name)) { next; }
@@ -1102,15 +1108,19 @@ sub CreateSingleDeviceTableAttrPublish($$$$) {
       } else {
         delete $map->{$dev}->{':autoResend'};
       }
-    }
-  }
+    #}
+  #}
 
   return;
 }
 
 # Sucht nach device/reading in der Dev-Map und speichert aktuellen dort den Zeitstempel
-sub updatePubTime($$$) {
-  my ($hash,$device,$reading) = @_;
+sub updatePubTime {
+  #my ($hash,$device,$reading) = @_;
+  my $hash    = shift // return;
+  my $device  = shift // carp q[No device name provided!] && return;
+  my $reading = shift // carp q[No reading provided!] && return;
+  
   my $map = $hash->{+HS_TAB_NAME_DEVICES};
   if(defined ($map)) {
     my $dmap = $map->{$device};
@@ -1124,14 +1134,18 @@ sub updatePubTime($$$) {
       }
     }
   }
+  return;
 }
 
 # sucht zu den gegebenen device und reading die publish-Eintraege (topic, qos, retain)
 # liefert Liste der passenden dev-hashes
 # verwendet device-record und beruecksichtigt defaults und globals
 # parameter: $hash, device-name, reading-name
-sub getDevicePublishRec($$$) {
-  my($hash, $dev, $reading) = @_;
+sub getDevicePublishRec {
+  #my($hash, $dev, $reading) = @_;
+  my $hash       = shift // return;
+  my $dev        = shift // carp q[No device name provided!] && return;
+  my $reading    = shift // carp q[No reading provided!] && return;
   my $ret = [];
   my $map = $hash->{+HS_TAB_NAME_DEVICES};
   return $ret unless defined $map;
@@ -1141,7 +1155,7 @@ sub getDevicePublishRec($$$) {
 
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] getDevicePublishRec> devmap: ".Dumper($devMap));
   
-  foreach my $key (keys %{$devMap->{':publish'}} ) {
+  for my $key (keys %{$devMap->{':publish'}} ) {
     #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] getDevicePublishRec> dev: $key");
     my($keyRName,$keyPostfix) = split("!",$key);
     if($keyRName eq $reading) {
@@ -1153,7 +1167,7 @@ sub getDevicePublishRec($$$) {
   # wenn keine explizite Readings gefunden wurden, dann noch einmal fragen, damit evtl. vorhandenen '*'-Definitionen zur Geltung kommen
   if(!@$ret) {
     #push(@$ret, getDevicePublishRecIntern($hash, $devMap, $globalMap, $dev, $reading, $reading, undef));
-    foreach my $key (keys %{$devMap->{':publish'}} ) {
+    for my $key (keys %{$devMap->{':publish'}} ) {
       #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] getDevicePublishRec> dev: $key");
       my($keyRName,$keyPostfix) = split("!",$key);
       if($keyRName eq '*') {
@@ -1178,9 +1192,15 @@ sub getDevicePublishRec($$$) {
 # in den uebergebenen Maps
 # verwendet device-record und beruecksichtigt defaults und globals
 # parameter: $hash, map, globalMap, device-name, reading-name
-sub getDevicePublishRecIntern($$$$$$$) {
-  my($hash, $devMap, $globalMap, $dev, $readingKey, $reading, $postFix) = @_;
- 
+sub getDevicePublishRecIntern { #($$$$$$$) {
+  #my($hash, $devMap, $globalMap, $dev, $readingKey, $reading, $postFix) = @_;
+  my $hash       = shift // return;
+  my $devMap     = shift // carp q[No device map provided!] && return;
+  my $globalMap  = shift // carp q[No globalMap provided!]  && return;
+  my $dev        = shift // carp q[No device name provided!] && return;
+  my $readingKey = shift; #seems to be optional
+  my $reading    = shift // carp q[No reading provided!] && return;
+  my $postFix    = shift; #mandatory? or assign a default?
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] getDevicePublishRec> params> devmap: ".Dumper($devMap));
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] getDevicePublishRec> params> globalmap: ".Dumper($globalMap));
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] getDevicePublishRec> params> dev: ".Dumper($dev));
@@ -1274,10 +1294,15 @@ sub getDevicePublishRecIntern($$$$$$$) {
 }
 
 # sucht Qos, Retain, Expression Werte unter Beruecksichtigung von Defaults und Globals
-sub retrieveQosRetainExpression($$$$$$) {
-  my($globalDefaultReadingMap, $globalReadingMap, $wildcardDefaultReadingMap, $wildcardReadingMap, $defaultReadingMap, $readingMap) = @_;
-  my $qos=undef;
-  my $retain = undef;
+sub retrieveQosRetainExpression { #($$$$$$) {
+  my $globalDefaultReadingMap   = shift;
+  my $globalReadingMap          = shift;
+  my $wildcardDefaultReadingMap = shift;
+  my $wildcardReadingMap        = shift;
+  my $defaultReadingMap         = shift;
+  my $readingMap                = shift; # none of the args seems to be mandatory...
+  my $qos        = undef;
+  my $retain     = undef;
   my $expression = undef;
 
   # Log3('GB',1,"MQTT_GENERIC_BRIDGE: retrieveQosRetainExpression: globalDefaultReadingMap: ".Dumper($globalDefaultReadingMap));
@@ -1354,14 +1379,19 @@ sub retrieveQosRetainExpression($$$$$$) {
 }
 
 # Evaluiert Werte in Default, wenn diese Variable / Perl-Expressions enthalten
-sub computeDefaults($$$$$) {
-  my($hash, $modifier, $globalMap, $devMap, $infoMap) = @_;
+sub computeDefaults { #($$$$$) {
+  #my($hash, $modifier, $globalMap, $devMap, $infoMap) = @_;
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] computeDefaults> infoMap: ".Dumper($infoMap));
+  my $hash      = shift // return;
+  my $modifier  = shift // carp q[No modifier provided!] && return;;
+  my $globalMap = shift; #seems not to be mandatory
+  my $devMap    = shift; #seems not to be mandatory
+  my $infoMap   = shift // {};
   my $mdLng = length($modifier);
   my $defaultCombined={};
-  $infoMap = {} unless defined $infoMap;
+  #$infoMap = {} unless defined $infoMap;
   if (defined($globalMap) and defined($globalMap->{':defaults'})) {
-    foreach my $param (keys %{$globalMap->{':defaults'}} ) {
+    for my $param (keys %{$globalMap->{':defaults'}} ) {
       if(startsWith($param,$modifier)) {
         my $key = substr($param,$mdLng);
         my $val = $globalMap->{':defaults'}->{$param};
@@ -1374,7 +1404,7 @@ sub computeDefaults($$$$$) {
   }
   my $devCombined={};
   if (defined($devMap) and defined($devMap->{':defaults'})) {
-    foreach my $param (keys %{$devMap->{':defaults'}} ) {
+    for my $param (keys %{$devMap->{':defaults'}} ) {
       if(startsWith($param,$modifier)) {
         my $key = substr($param,$mdLng);
         my $val = $devMap->{':defaults'}->{$param};
@@ -1383,7 +1413,7 @@ sub computeDefaults($$$$$) {
       }
     }
   }
-  foreach my $param (keys %{$devCombined} ) {
+  for my $param (keys %{$devCombined} ) {
     my $val = $devCombined->{$param};
     $devCombined->{$param} = _evalValue2($hash->{NAME},$val,{%$defaultCombined, %$infoMap});
   }
@@ -1394,31 +1424,35 @@ sub computeDefaults($$$$$) {
 # Ersetzt im $str alle Variable $xxx durch entsprechende Werte aus dem Map {xxx=>wert, xxy=>wert2}
 # Ersetzt wird jedoch nur dann, wenn $str mit '{' anfaengt und mit '}' endet.
 # Nach dem Ersetzen wird (je $noEval-Wert) Perl-eval durchgefuehrt
-sub _evalValue2($$;$$) {
-  my($mod, $str, $map, $noEval) = @_;
-  $noEval = 0 unless defined $noEval;
+sub _evalValue2 {
+  my $mod   = shift // return;
+  my $str    = shift // carp q[No string to analyze!] && return;
+  my $map    = shift;
+  my $noEval = shift // 0;
+  #$noEval = 0 unless defined $noEval;
   #Log3('xxx',1,"MQTT_GENERIC_BRIDGE:DEBUG:> eval2: str: $str; map: ".Dumper($map));
-  my$ret = $str;
+  my $ret = $str;
   # TODO : umbauen $str =~ m/^(.*)({.*})(.*)$/;; $1.$2.$3 - ok
   # TODO : Maskierte Klammern unterstuetzen? $str =~ m/^(.*)(\\{.*\\})(.*)({.*})(.*)$/;; $1.$2.$3.$4.$5 - irgendwie so
   #if($str =~ m/^{.*}$/) {
   #if($str =~ m/^(.*)({.*})(.*)$/) {
-  if($str =~ m/^(.*)(\{.*\})(.*)$/) { # forum https://forum.fhem.de/index.php/topic,117659.msg1121004.html#msg1121004
-    my $s1=$1; $s1='' unless defined $s1;
-    my $s2=$2; $s2='' unless defined $s2;
-    my $s3=$3; $s3='' unless defined $s3;
+  if($str =~ m/\A(.*)(\{.*})(.*)\z/) { # forum https://forum.fhem.de/index.php/topic,117659.msg1121004.html#msg1121004
+    my $s1 = $1 // q{}; #$s1='' unless defined $s1;
+    my $s2 = $2 // q{}; #$s2='' unless defined $s2;
+    my $s3 = $3 // q{}; #$s3='' unless defined $s3;
     no strict "refs";
     local $@;
-    my $base = '';
-    my $device = '';
-    my $reading = '';
-    my $name = '';
+    my $base = q{};
+    my $device = q{};
+    my $reading = q{};
+    my $name = q{};
     #my $room = '';
     if(defined($map)) {
-      foreach my $param (keys %{$map}) {
-        my $val = $map->{$param};
+      for my $param (keys %{$map}) {
+        
         my $pname = '$'.$param;
-        $val=$pname unless defined $val;
+        my $val = $map->{$param} // $pname;
+        #$val=$pname if !defined $val;
         # Sonderlocken fuer $base, $name, $reading, $device, damit auch xxx:topic={$base} geht (sonst koente nur {"$base"} verwendet werden)
         if($pname eq '$base') {
           $base = $val;
@@ -1435,12 +1469,12 @@ sub _evalValue2($$;$$) {
           #$ret =~ s/\Q$pname\E/$val/g;
           $s2 =~ s/\Q$pname\E/$val/g;
           #Log3('xxx',1,"MQTT_GENERIC_BRIDGE:DEBUG:> replace2 done: $s2");
+        }
       }
-    }
     }
     #Log3('xxx',1,"MQTT_GENERIC_BRIDGE:DEBUG:> eval2 expr: $s2");
     #$ret = eval($ret) unless $noEval;
-    $s2 = eval($s2) unless $noEval;
+    $s2 = eval($s2) if !$noEval;
     #Log3('xxx',1,"MQTT_GENERIC_BRIDGE:DEBUG:> eval2 done: $s2");
     if ($@) {
       Log3($mod,2,"MQTT_GENERIC_BRIDGE: evalValue: user value ('".$str."'') eval error: ".$@);
@@ -1448,44 +1482,27 @@ sub _evalValue2($$;$$) {
     } else {
       $ret = $s1.$s2.$s3;
     }
-    $ret = _evalValue2($mod, $ret, $map, $noEval) unless $noEval;
+    $ret = _evalValue2($mod, $ret, $map, $noEval) if !$noEval;
   }
   return $ret;
 }
 
-# Alte Methode, verwendet noch fixe Variable (base, dev, reading, name), kein Map
-# soll durch _evalValue2 ersetzt werden
-# sub _evalValue($$;$$$$) {
-#   my($mod, $str, $base, $device, $reading, $name) = @_;
-#   #Log3('xxx',1,"MQTT_GENERIC_BRIDGE:DEBUG:> eval: (str, base, dev, reading, name) $str, $base, $device, $reading, $name");
-#   my$ret = $str;
-#   #$base="" unless defined $base;
-#   if($str =~ m/^{.*}$/) {
-#     no strict "refs";
-#     local $@;
-#     #Log3('xxx',1,"MQTT_GENERIC_BRIDGE:DEBUG:> eval !!!");
-#     $ret = eval($str);
-#     #Log3('xxx',1,"MQTT_GENERIC_BRIDGE:DEBUG:> eval done: $ret");
-#     if ($@) {
-#       Log3($mod,2,"MQTT_GENERIC_BRIDGE: evalValue: user value ('".$str."'') eval error: ".$@);
-#     }
-#   }
-#   return $ret;
-# }
+
 
 # sucht zu dem gegebenen (ankommenden) topic das entsprechende device und reading
 # Params: $hash, $topic (empfangene topic)
 # return: map (device1->{reading}=>reading1, device1->{expression}=>{...}, deviceN->{reading}=>readingM)
-sub searchDeviceForTopic($$) {
-  my($hash, $topic) = @_;
-  
+sub searchDeviceForTopic {
+  #my($hash, $topic) = @_;
+  my $hash  = shift // return;
+  my $topic = shift // carp q[No topic provided!] && return;
   my $ret = {};
   my $map = $hash->{+HS_TAB_NAME_DEVICES};
   my $globalMap = $map->{':global'};
   if(defined ($map)) {
-    foreach my $dname (keys %{$map}) {
+    for my $dname (keys %{$map}) {
       my $dmap = $map->{$dname}->{':subscribe'};
-      foreach my $rmap (@{$dmap}) {
+      for my $rmap (@{$dmap}) {
         my $topicExp = $rmap->{'topicExp'};
         #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] searchDeviceForTopic: $dname => expr: ".Dumper($topicExp));
         if (defined($topicExp) and $topic =~ $topicExp) {
@@ -1538,8 +1555,8 @@ sub searchDeviceForTopic($$) {
 
 # Erstellt RexExp-Definitionen zum Erkennen der ankommenden Topics
 # Platzhalter werden entsprechend verarbeitet
-sub createRegexpForTopic($) {
-  my $t = shift;
+sub createRegexpForTopic {
+  my $t = shift // return;
   $t =~ s|#$|.\*|;
   # Zugriff auf benannte captures: $+{reading}
   $t =~ s|(\$reading)|(\?\<reading\>+)|g;
@@ -1557,15 +1574,21 @@ sub createRegexpForTopic($) {
 # Params: Bridge-Hash, Dev-Name (im Map, ist auch = DevName),
 #         Internes Map mit allen Definitionen fuer alle Gerate,
 #         Attribute-Value zum Parsen
-sub CreateSingleDeviceTableAttrSubscribe($$$$) {
-  my($hash, $dev, $map, $attrVal) = @_;
+sub CreateSingleDeviceTableAttrSubscribe { #($$$$) {
+  #my($hash, $dev, $map, $attrVal) = @_;
+  my $hash    = shift // return;
+  my $dev     = shift // carp q[No device name provided!] && return;
+  my $map     = shift // carp q[No map arg provided!]     && return;
+  my $attrVal = shift; #seems not to be mandatory...
+
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] CreateSingleDeviceTableAttrSubscribe: $dev, $attrVal, ".Dumper($map));
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] CreateSingleDeviceTableAttrSubscribe: ".Dumper($map));
   # collect subscribe topics
   my $devMap = $map->{$dev};
   my $globalMap = $map->{':global'};
   delete ($devMap->{':subscribe'});
-  if(defined $attrVal) {
+  return if !defined $attrVal;
+  #if(defined $attrVal) {
     # format: 
     #   <reading|alias>:topic="asd/asd"
     #   <set-cmd or * for 'state'>:stopic="asd/asd"
@@ -1583,7 +1606,7 @@ sub CreateSingleDeviceTableAttrSubscribe($$$$) {
     if(defined($named)){
       #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] CreateSingleDeviceTableAttrSubscribe: ".Dumper($map));
       my $dmap = {};
-      foreach my $param (keys %{$named}) {
+      for my $param (keys %{$named}) {
         my $val = $named->{$param};
         my($name,$ident) = split(":",$param);
         if(!defined($ident) or !defined($name)) { next; }
@@ -1668,40 +1691,54 @@ sub CreateSingleDeviceTableAttrSubscribe($$$$) {
       $devMap->{':subscribe'}= \@vals;
     }
     $map->{$dev} = $devMap;
-  }
+  #}
   return;
 }
 
 # Prueft, ob Geraete keine Definitionen mehr enthalten und entfernt diese ggf. aus der Tabelle
-sub deleteEmptyDevices($$$) {
-  my ($hash, $map, $devMapName) = @_;
-  return unless defined $map;
-  return unless defined $devMapName;
-  return unless defined $map->{$devMapName};
+sub deleteEmptyDevices { #($$$) {
+  #my ($hash, $map, $devMapName) = @_;
+  my $hash       = shift // return;
+  my $map        = shift // carp q[No map arg provided!]     && return;
+  my $devMapName = shift // carp q[No devMapName provided!]  && return;
+  
+  return if !defined $map->{$devMapName};
 
   # Wenn keine Eintraege => Device loeschen
   if(keys %{$map->{$devMapName}} == 0) {
     delete($map->{$devMapName});
   }
+  return;
 }
 
 # Erstellt alle Strukturen fuer fuer ein bestimmtes Geraet (Default, Alias, Publish, Subscribe).
 # Params: Bridge-Hash, Dev-Name , Dev-Map-Name (meist = DevName, kann aber auch ein Pseudegeraet wie ':global' sein),
 #         Attr-prefix (idR 'mqtt')
 #         Internes Map mit allen Definitionen fuer alle Gerate,
-sub CreateSingleDeviceTable($$$$$) {
-  my ($hash, $dev, $devMapName, $prefix, $map) = @_;
+sub CreateSingleDeviceTable { #($$$$$) {
+  # my ($hash, $dev, $devMapName, $prefix, $map) = @_;
+  my $hash       = shift // return;
+  my $dev        = shift // carp q[No device name provided!] && return;
+  my $devMapName = shift // carp q[No devMapName provided!]  && return;
+  my $prefix     = shift // carp q[No prefix provided!]      && return;
+  my $map        = shift // carp q[No map arg provided!]     && return;
   # Divece-Attribute fuer ein bestimmtes Device aus Device-Attributen auslesen
   CreateSingleDeviceTableAttrDefaults($hash, $devMapName, $map, AttrVal($dev, $prefix.CTRL_ATTR_NAME_DEFAULTS, undef));
   CreateSingleDeviceTableAttrAlias($hash, $devMapName, $map, AttrVal($dev, $prefix.CTRL_ATTR_NAME_ALIAS, undef)); 
   CreateSingleDeviceTableAttrPublish($hash, $devMapName, $map, AttrVal($dev, $prefix.CTRL_ATTR_NAME_PUBLISH, undef));
   CreateSingleDeviceTableAttrSubscribe($hash, $devMapName, $map, AttrVal($dev, $prefix.CTRL_ATTR_NAME_SUBSCRIBE, undef));
-  deleteEmptyDevices($hash, $map, $devMapName);
+  return deleteEmptyDevices($hash, $map, $devMapName);
 }
 
 # Geraet-Infos neu einlesen
-sub _RefreshDeviceTable($$$$;$$) {
-  my ($hash, $dev, $devMapName, $prefix, $attrName, $attrVal) = @_;
+sub _RefreshDeviceTable { #($$$$;$$) {
+  #my ($hash, $dev, $devMapName, $prefix, $attrName, $attrVal) = @_;
+  my $hash       = shift // return;
+  my $dev        = shift // carp q[No device name provided!] && return;
+  my $devMapName = shift // carp q[No devMapName provided!]  && return;
+  my $prefix     = shift // carp q[No prefix provided!]      && return;
+  my $attrName   = shift; 
+  my $attrVal    = shift; 
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] _RefreshDeviceTable: $dev, $devMapName, $prefix, $attrName, $attrVal");
   # Attribute zu dem angegeben Geraet neu erfassen
   my $map = $hash->{+HS_TAB_NAME_DEVICES};
@@ -1717,58 +1754,73 @@ sub _RefreshDeviceTable($$$$;$$) {
   }
   deleteEmptyDevices($hash, $map, $devMapName) unless defined $attrVal;
 
-  UpdateSubscriptionsSingleDevice($hash, $dev);
+  return UpdateSubscriptionsSingleDevice($hash, $dev);
 }
 
 # Geraet-Infos neu einlesen
-sub RefreshDeviceTable($$;$$) {
-  my ($hash, $dev, $attrName, $attrVal) = @_;
+sub RefreshDeviceTable { #($$;$$) {
+  #my ($hash, $dev, $attrName, $attrVal) = @_;
+  my $hash     = shift // return;
+  my $dev      = shift // carp q[No device name provided!] && return;
+  my $attrName = shift;
+  my $attrVal  = shift;
   my $prefix = $hash->{+HS_PROP_NAME_PREFIX};
-  _RefreshDeviceTable($hash, $dev, $dev, $prefix, $attrName, $attrVal);
+  return _RefreshDeviceTable($hash, $dev, $dev, $prefix, $attrName, $attrVal);
 }
 
-sub RefreshGlobalTableAll($) {
-  my ($hash) = @_;
+sub RefreshGlobalTableAll {
+  my $hash = shift // return;
   my $name = $hash->{NAME};
   RefreshGlobalTable($hash, CTRL_ATTR_NAME_GLOBAL_PREFIX.CTRL_ATTR_NAME_DEFAULTS, AttrVal($name,CTRL_ATTR_NAME_GLOBAL_PREFIX.CTRL_ATTR_NAME_DEFAULTS, undef));
   RefreshGlobalTable($hash, CTRL_ATTR_NAME_GLOBAL_PREFIX.CTRL_ATTR_NAME_ALIAS, AttrVal($name,CTRL_ATTR_NAME_GLOBAL_PREFIX.CTRL_ATTR_NAME_ALIAS, undef));
-  RefreshGlobalTable($hash, CTRL_ATTR_NAME_GLOBAL_PREFIX.CTRL_ATTR_NAME_PUBLISH, AttrVal($name,CTRL_ATTR_NAME_GLOBAL_PREFIX.CTRL_ATTR_NAME_PUBLISH, undef));
+  return RefreshGlobalTable($hash, CTRL_ATTR_NAME_GLOBAL_PREFIX.CTRL_ATTR_NAME_PUBLISH, AttrVal($name,CTRL_ATTR_NAME_GLOBAL_PREFIX.CTRL_ATTR_NAME_PUBLISH, undef));
   #RefreshGlobalTable($hash, CTRL_ATTR_NAME_GLOBAL_PREFIX.CTRL_ATTR_NAME_SUBSCRIBE, AttrVal($name,CTRL_ATTR_NAME_GLOBAL_PREFIX.CTRL_ATTR_NAME_SUBSCRIBE, undef));
 }
 
 # GlobalTable-Infos neu einlesen fuer einen bestimmten Attribut
-sub RefreshGlobalTable($;$$) {
-  my ($hash, $attrName, $attrVal) = @_;
+sub RefreshGlobalTable { #($;$$) {
+  #my ($hash, $attrName, $attrVal) = @_;
+  my $hash     = shift // return;
+  my $attrName = shift // carp q[No attribute name];
+  my $attrVal  = shift // carp q[No attribute value]  && return;
+  
   my $prefix = CTRL_ATTR_NAME_GLOBAL_PREFIX;
-  _RefreshDeviceTable($hash, $hash->{NAME}, ':global', $prefix, $attrName, $attrVal);
+  return _RefreshDeviceTable($hash, $hash->{NAME}, ':global', $prefix, $attrName, $attrVal);
 }
 
 # Geraet umbenennen, wird aufgerufen, wenn ein Geraet in FHEM umbenannt wird
-sub RenameDeviceInTable($$$) {
-  my($hash, $dev, $devNew) = @_;
+sub RenameDeviceInTable {
+  #my($hash, $dev, $devNew) = @_;
+  my $hash   = shift // return;
+  my $dev    = shift // carp q[No device name provided!] && return;
+  my $devNew = shift // carp q[No new device name provided!] && return;
+  
   my $map = $hash->{+HS_TAB_NAME_DEVICES};
-  if(defined($map->{$dev})) {
-    #$map->{$devNew}=$map->{$dev};
-    delete($map->{$dev});
-    my $prefix = $hash->{+HS_PROP_NAME_PREFIX};
-    CreateSingleDeviceTable($hash, $devNew, $devNew, $prefix, $map);
-    UpdateSubscriptionsSingleDevice($hash, $devNew);
-  }
+  
+  return if !defined($map->{$dev});
+  
+  delete($map->{$dev});
+  my $prefix = $hash->{+HS_PROP_NAME_PREFIX};
+  CreateSingleDeviceTable($hash, $devNew, $devNew, $prefix, $map);
+  return UpdateSubscriptionsSingleDevice($hash, $devNew);
+   
 }
 
 # Geraet loeschen (geloescht in FHEM)
-sub DeleteDeviceInTable($$) {
-  my($hash, $dev) = @_;
+sub DeleteDeviceInTable {
+  #my($hash, $dev) = @_;
+  my $hash = shift // return;
+  my $dev  = shift // carp q[No device name provided!] && return;
   my $map = $hash->{+HS_TAB_NAME_DEVICES};
-  if(defined($map->{$dev})) {
-    delete($map->{$dev});
-    UpdateSubscriptions($hash);
-  }
+  
+  return if !defined($map->{$dev});
+  delete($map->{$dev});
+  return UpdateSubscriptions($hash);
 }
 
 # alle zu ueberwachende Geraete durchsuchen und relevanter Informationen einlesen
-sub CreateDevicesTable($) {
-  my ($hash) = @_;
+sub CreateDevicesTable {
+  my $hash = shift // return;
   # alle zu ueberwachende Geraete durchgehen und Attribute erfassen
   my $map={};
   $hash->{+HS_TAB_NAME_DEVICES} = $map;
@@ -1778,7 +1830,7 @@ sub CreateDevicesTable($) {
   my @devices = devspec2array($hash->{+HS_PROP_NAME_DEVSPEC});
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] CreateDevicesTable: ".Dumper(@devices));
   my $prefix = $hash->{+HS_PROP_NAME_PREFIX};
-  foreach my $dev (@devices) {
+  for my $dev (@devices) {
     if($dev ne $hash->{NAME}) {
       Log3($hash->{NAME},5,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] CreateDevicesTable for ".$dev);
       CreateSingleDeviceTable($hash, $dev, $dev, $prefix, $map); 
@@ -1789,22 +1841,22 @@ sub CreateDevicesTable($) {
   CreateSingleDeviceTable($hash, $hash->{NAME}, ":global", CTRL_ATTR_NAME_GLOBAL_PREFIX, $map);
 
   $hash->{+HS_TAB_NAME_DEVICES} = $map;
-  UpdateSubscriptions($hash);
+  return UpdateSubscriptions($hash);
   #$hash->{+HELPER}->{+HS_FLAG_INITIALIZED} = 1;
 }
 
 # Ueberbleibsel eines Optimierungsversuchs
-sub UpdateSubscriptionsSingleDevice($$) {
-  my ($hash, $dev) = @_;
+sub UpdateSubscriptionsSingleDevice {
+  my $hash = shift // return;
   # Liste der Geraete mit der Liste der Subscriptions abgleichen
   # neue Subscriptions bei Bedarf anlegen und/oder ueberfluessige loeschen
   # fuer Einzeldevices vermutlich eher schwer, erstmal komplet updaten
-  UpdateSubscriptions($hash);
+  return UpdateSubscriptions($hash);
 }
 
 # Alle MQTT-Subscriptions erneuern
-sub UpdateSubscriptions($) {
-  my ($hash) = @_;
+sub UpdateSubscriptions {
+  my $hash = shift // return;
 
   updateDevCount($hash);
 
@@ -1814,11 +1866,11 @@ sub UpdateSubscriptions($) {
   my $topicMap = {};
   my $gmap = $hash->{+HS_TAB_NAME_DEVICES};
   if(defined($gmap)) {
-    foreach my $dname (keys %{$gmap}) {
+    for my $dname (keys %{$gmap}) {
       my $smap = $gmap->{$dname}->{':subscribe'};
       #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] UpdateSubscriptions: smap = ".Dumper($gmap->{$dname}));
       if(defined($smap)) {
-        foreach my $rmap (@{$smap}) {
+        for my $rmap (@{$smap}) {
           my $topic = $rmap->{'topic'};
           $topicMap->{$topic}->{'qos'}=$rmap->{'qos'} if defined $topic;
         }
@@ -1835,11 +1887,11 @@ sub UpdateSubscriptions($) {
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] UpdateSubscriptions: topics = ".Dumper(@topics));
   my @new=();
   my @remove=();
-  foreach my $topic (@topics) {
+  for my $topic (@topics) {
     next if ($topic eq "");
     push @new,$topic unless grep {$_ eq $topic} @{$hash->{subscribe}};
   }
-  foreach my $topic (@{$hash->{subscribe}}) {
+  for my $topic (@{$hash->{subscribe}}) {
     next if ($topic eq "");
     push @remove,$topic unless grep {$_ eq $topic} @topics;
   }
@@ -1848,11 +1900,11 @@ sub UpdateSubscriptions($) {
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] UpdateSubscriptions: new = ".Dumper(@new));
 
   if(isIODevMQTT($hash)) {
-    foreach my $topic (@remove) {
+    for my $topic (@remove) {
       #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] UpdateSubscriptions: unsubscribe: topic = ".Dumper($topic));
       client_unsubscribe_topic($hash,$topic);
     }
-    foreach my $topic (@new) {
+    for my $topic (@new) {
       my $qos = $topicMap->{$topic}->{'qos'};    # TODO: Default lesen
       $qos = 0 unless defined $qos;
       my $retain = 0; # not supported
@@ -1866,11 +1918,12 @@ sub UpdateSubscriptions($) {
     # MQTT2 Subscriptions
     IOWrite($hash, "subscriptions", join(" ", @new));
   }
+  return;
 }
 
 # Alle MQTT-Subscription erntfernen
-sub RemoveAllSubscripton($) {
-  my ($hash) = @_;
+sub RemoveAllSubscripton {
+  my $hash = shift // return;
 
   #if(isIODevMQTT($hash)) {
   if(isIODevMQTT2_CLIENT($hash)) {
@@ -1890,23 +1943,24 @@ sub RemoveAllSubscripton($) {
     $hash->{subscribeExpr}=[];
     $hash->{subscribeQos}={};
   }
+  return;
 }
 
-sub InitializeDevices($) {
-  my ($hash) = @_;
+sub InitializeDevices {
+  my $hash = shift // return;
   # alles neu aufbauen
   # Deviceliste neu aufbauen, ggf., alte subscription kuendigen, neue abonieren
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] ------------ InitializeDevices --------------");
-  CreateDevicesTable($hash);
+  return CreateDevicesTable($hash);
   #UpdateSubscriptions($hash);
 }
 
 # Falls noetig, Geraete initialisieren
-sub CheckInitialization($) {
-  my ($hash) = @_;
+sub CheckInitialization {
+  my $hash = shift // return;
   # Pruefen, on interne Strukturen initialisiert sind
   return if $hash->{+HELPER}->{+HS_FLAG_INITIALIZED};
-  InitializeDevices($hash);
+  return InitializeDevices($hash);
 }
 
 # Zusaetzliche Attribute im Debug-Modus
@@ -1917,13 +1971,17 @@ my %getsDebug = (
 );
 
 # Routine fuer FHEM Get-Commando
-sub Get($$$@) {
-  my ($hash, $name, $command, $args) = @_;
+sub Get { #($$$@) {
+  #my ($hash, $name, $command, $args) = @_;
+  my $hash    = shift // return;
+  my $name    = shift;
+  my $command = shift // return "Need at least one parameters";
+  my $args    = shift;
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] get CL: ".Dumper($hash->{CL}));
-  return "Need at least one parameters" unless (defined $command);
+  #return "Need at least one parameters" unless (defined $command);
   unless (defined($gets{$command}) or (isDebug($hash) && defined($getsDebug{$command}))) {
     my $rstr="Unknown argument $command, choose one of";
-    foreach my $vname (keys %gets) {
+    for my $vname (keys %gets) {
       $rstr.=" $vname";
       my $vval=$gets{$vname};
       $rstr.=":$vval" if $vval;
@@ -1931,8 +1989,8 @@ sub Get($$$@) {
     if (isDebug($hash)) {
       $rstr.=" debugInfo:noArg debugReinit:noArg";
       $rstr.=" debugShowPubRec:";
-      foreach my $dname (sort keys %{$hash->{+HS_TAB_NAME_DEVICES}}) {
-        foreach my $rname (sort keys %{$hash->{+HS_TAB_NAME_DEVICES}->{$dname}->{':publish'}}) {
+      for my $dname (sort keys %{$hash->{+HS_TAB_NAME_DEVICES}}) {
+        for my $rname (sort keys %{$hash->{+HS_TAB_NAME_DEVICES}->{$dname}->{':publish'}}) {
           $rstr.= $dname.'>'.$rname.',';
         }
         $rstr.= $dname.'>unknownReading,';
@@ -1979,7 +2037,7 @@ sub Get($$$@) {
     };
     $command eq "devlist" and do {
       my $res="";
-      foreach my $dname (sort keys %{$hash->{+HS_TAB_NAME_DEVICES}}) {
+      for my $dname (sort keys %{$hash->{+HS_TAB_NAME_DEVICES}}) {
         if($dname ne ":global") {
           if($args) {
             next unless $dname =~ /^$args$/;
@@ -1992,18 +2050,18 @@ sub Get($$$@) {
     };
     $command eq "devinfo" and do {
       my $res="";
-      foreach my $dname (sort keys %{$hash->{+HS_TAB_NAME_DEVICES}}) {
+      for my $dname (sort keys %{$hash->{+HS_TAB_NAME_DEVICES}}) {
         if($dname ne ":global") {
           if($args) {
             next unless $dname =~ /^$args$/;
           }
           $res.=$dname."\n";
           $res.="  publish:\n";
-          foreach my $rname (sort keys %{$hash->{+HS_TAB_NAME_DEVICES}->{$dname}->{':publish'}}) {
+          for my $rname (sort keys %{$hash->{+HS_TAB_NAME_DEVICES}->{$dname}->{':publish'}}) {
             #my $pubRec = getDevicePublishRec($hash, $dname, $rname);
             my $pubRecList = getDevicePublishRec($hash, $dname, $rname);
             if(defined($pubRecList)) {
-              foreach my $pubRec (@$pubRecList) {
+              for my $pubRec (@$pubRecList) {
             if(defined($pubRec)) {
               my $expression = $pubRec->{'expression'};
               my $mode =  $pubRec->{'mode'};
@@ -2037,13 +2095,13 @@ sub Get($$$@) {
           }
           $res.="  subscribe:\n";
           my @resa;
-          foreach my $subRec (@{$hash->{+HS_TAB_NAME_DEVICES}->{$dname}->{':subscribe'}}) {
+          for my $subRec (@{$hash->{+HS_TAB_NAME_DEVICES}->{$dname}->{':subscribe'}}) {
             my $qos = $subRec->{'qos'};
             my $mode = $subRec->{'mode'};
             my $expression = $subRec->{'expression'};
             my $topic = $subRec->{'topic'};
             $topic = '---' unless defined $topic;
-            my $rest.= sprintf('    %-16s <= %s', $subRec->{'reading'}, $topic);
+            my $rest= sprintf('    %-16s <= %s', $subRec->{'reading'}, $topic);
             $rest.= " (mode: $mode";
             $rest.= "; qos: $qos" if defined ($qos);
             $rest.= ")\n";
@@ -2068,6 +2126,7 @@ sub Get($$$@) {
     #   last;
     # };
   };
+  return;
 }
 
 sub Set {
@@ -2076,8 +2135,9 @@ sub Set {
 }
 
 # Routine fuer FHEM Notify
-sub Notify() {
-  my ($hash,$dev) = @_;
+sub Notify {
+  my $hash = shift // return;
+  my $dev  = shift // carp q[No device hash provided!] && return;
 
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] notify for ".$dev->{NAME}." ".Dumper(@{$dev->{CHANGED}})) if $dev->{TYPE} ne 'MQTT_GENERIC_BRIDGE';
   if( $dev->{NAME} eq "global" ) {
@@ -2137,12 +2197,13 @@ sub Notify() {
     return;
   }
 
-  checkPublishDeviceReadingsUpdates($hash, $dev);
+  return checkPublishDeviceReadingsUpdates($hash, $dev);
 }
 
 # Pruefen, ob in dem Device Readings-Aenderungen vorliegen, die gepublished werden sollen 
-sub checkPublishDeviceReadingsUpdates($$) {
-  my ($hash, $dev) = @_;
+sub checkPublishDeviceReadingsUpdates {
+  my $hash = shift // return;
+  my $dev  = shift // carp q[No monitored device hash provided!] && return;
 
   # # pruefen, ob die Aenderung von der Bridge selbst getriggert wurde
   # # es ist der Readingsname drin, die Pruefung wird jedoch derzeit nicht vorgenommen, da nur ein Reading in CHANGE drin sein kann
@@ -2174,14 +2235,14 @@ sub checkPublishDeviceReadingsUpdates($$) {
   unless (defined($devDataRecord)) {
     # Pruefen, ob ggf. Default map existiert.
     my $globalDataRecord = $devDataTab->{':global'};
-    return "" unless defined $globalDataRecord;
+    return '' if !defined $globalDataRecord;
     my $globalPublishMap = $globalDataRecord->{':publish'};
-    return "" unless defined $globalPublishMap;
+    return '' if !defined $globalPublishMap;
     my $size = int(keys %{$globalPublishMap});
-    return "" unless ($size>0);
+    return '' unless ($size>0);
   }
 
-  foreach my $event (@{deviceEvents($dev,1)}) {
+  for my $event (@{deviceEvents($dev,1)}) {
     #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] Notify for $dev->{NAME} event: $event STATE: $dev->{STATE} ".Dumper($dev));
     #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] Notify for $dev->{NAME} event: $event STATE: $dev->{STATE}");
     $event =~ /^([^:]+)(:\s)?(.*)$/sm; # Schalter /sm ist wichtig! Sonst wir bei mehrzeiligen Texten Ende nicht korrekt erkannt. s. https://perldoc.perl.org/perlretut.html#Using-regular-expressions-in-Perl 
@@ -2222,6 +2283,7 @@ sub checkPublishDeviceReadingsUpdates($$) {
       }
     }
   }
+  return;
 }
 
 # Definiert Liste der auszuschliessenden Type/Readings-Kombinationen.
@@ -2235,11 +2297,16 @@ sub checkPublishDeviceReadingsUpdates($$) {
 #       bzw. genannte Readings an jedem Geraetetyp ignoriert werden.
 #       Zusaetzlich kann auch die Richtung optional angegeben werden (pub oder sub). Dann gilt die Ausnahme entsprechend nur fuers Senden oder nur fuer Empfang.
 # TEST: {Dumper(MQTT::GENERIC_BRIDGE::defineGlobalTypeExclude($defs{'mqttGenericBridge'},'sub:type:reading pub:*:reading2 sub:*:* test'))}
-sub defineGlobalTypeExclude($;$) {
-  my ($hash, $valueType) = @_;
+sub defineGlobalTypeExclude { #($;$) {
+  my $hash = shift // return;
+  my $valueType = shift // DEFAULT_GLOBAL_TYPE_EXCLUDES;
+  
+  $valueType.= ' '.DEFAULT_GLOBAL_TYPE_EXCLUDES if $valueType ne DEFAULT_GLOBAL_TYPE_EXCLUDES;
+  
+  #my ($hash, $valueType) = @_;
   #$valueType = AttrVal($hash->{NAME}, CTRL_ATTR_NAME_GLOBAL_TYPE_EXCLUDE, DEFAULT_GLOBAL_TYPE_EXCLUDES) unless defined $valueType;
-  $valueType = DEFAULT_GLOBAL_TYPE_EXCLUDES unless defined $valueType;
-  $valueType.= ' '.DEFAULT_GLOBAL_TYPE_EXCLUDES if defined $valueType;
+  #$valueType = DEFAULT_GLOBAL_TYPE_EXCLUDES unless defined $valueType;
+  #$valueType.= ' '.DEFAULT_GLOBAL_TYPE_EXCLUDES if defined $valueType;
   #$main::attr{$hash->{NAME}}{+CTRL_ATTR_NAME_GLOBAL_TYPE_EXCLUDE} = $valueType;
   # HS_PROP_NAME_GLOBAL_EXCLUDES_TYPE und HS_PROP_NAME_GLOBAL_EXCLUDES_READING
 
@@ -2257,7 +2324,7 @@ sub defineGlobalTypeExclude($;$) {
 
 
   my($unnamed, $named) = main::parseParams($valueType,'\s',' ','=');
-  foreach my $val (@$unnamed) {
+  for my $val (@$unnamed) {
     next if($val eq '');
     my($dir, $type, $reading) = split(/:/, $val);
     if ((!defined $reading) and ($dir ne 'pub') and ($dir ne 'sub')) {
@@ -2294,10 +2361,14 @@ sub defineGlobalTypeExclude($;$) {
 #       Ein Stern anstatt des Geraetenamens ist nicht erlaubt (benutzen Sie in diesem Fall GlobalTypeExclude).
 #       Zusaetzlich kann auch die Richtung optional angegeben werden (pub oder sub). Dann gilt die Ausnahme entsprechend nur fuers Senden oder nur fuer Empfang.
 # TEST {Dumper(MQTT::GENERIC_BRIDGE::defineGlobalDevExclude($defs{'mqttGenericBridge'},'sub:dev1:reading1 dev2:reading2 dev3 pub:a: *:* test'))}
-sub defineGlobalDevExclude($;$) {
-  my ($hash, $valueName) = @_;
+sub defineGlobalDevExclude { #($;$) {
+  my $hash = shift // return;
+  my $valueName = shift // DEFAULT_GLOBAL_DEV_EXCLUDES;
   $valueName = DEFAULT_GLOBAL_DEV_EXCLUDES unless defined $valueName;
   $valueName.= ' '.DEFAULT_GLOBAL_DEV_EXCLUDES if defined $valueName;
+  #Beta-User: Logikfehler? Wenn, dann müßte man die beiden vorangehenden Zeilen umdrehen, oder? Oder so:
+  #$valueName.= ' '.DEFAULT_GLOBAL_DEV_EXCLUDES if $valueName ne DEFAULT_GLOBAL_DEV_EXCLUDES;
+  
   # HS_PROP_NAME_GLOBAL_EXCLUDES_DEVICES
 
   $hash->{+HS_PROP_NAME_GLOBAL_EXCLUDES_DEVICES}={};
@@ -2311,7 +2382,7 @@ sub defineGlobalDevExclude($;$) {
   # }
 
   my($unnamed, $named) = main::parseParams($valueName,'\s',' ','=');
-  foreach my $val (@$unnamed) {
+  for my $val (@$unnamed) {
     next if($val eq '');
     my($dir, $dev, $reading) = split(/:/, $val);
     if ((!defined $reading) and ($dir ne 'pub') and ($dir ne 'sub')) {
@@ -2320,7 +2391,7 @@ sub defineGlobalDevExclude($;$) {
       $dir=undef;
     }
     next if($dev eq '');
-    $reading = '*' unless defined $reading;
+    $reading = '*' if !defined $reading;
     $reading = '*' if $reading eq '';
     #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] defineGlobalDevExclude: dir, dev, reading: ".Dumper(($dir, $dev, $reading)));
     if (!defined $dir) {
@@ -2335,10 +2406,10 @@ sub defineGlobalDevExclude($;$) {
 }
 
 # Setzt Liste der auszuschliessenden Type/Readings-Kombinationenb auf Defaultwerte zurueck (also falls Attribut nicht definiert ist).
-sub defineDefaultGlobalExclude($) {
-  my ($hash) = @_;  
+sub defineDefaultGlobalExclude {
+  my $hash = shift // return;
   defineGlobalTypeExclude($hash, AttrVal($hash->{NAME}, CTRL_ATTR_NAME_GLOBAL_TYPE_EXCLUDE, DEFAULT_GLOBAL_TYPE_EXCLUDES));
-  defineGlobalDevExclude($hash, AttrVal($hash->{NAME}, CTRL_ATTR_NAME_GLOBAL_DEV_EXCLUDE, DEFAULT_GLOBAL_DEV_EXCLUDES));
+  return defineGlobalDevExclude($hash, AttrVal($hash->{NAME}, CTRL_ATTR_NAME_GLOBAL_DEV_EXCLUDE, DEFAULT_GLOBAL_DEV_EXCLUDES));
 }
 
 # Prueft, ob Type/Reading- oder Geraete/Reading-Kombination von der Uebertragung ausgeschlossen werden soll, 
@@ -2348,8 +2419,13 @@ sub defineDefaultGlobalExclude($) {
 #     $type:    Geraetetyp
 #     $devName: Geraetename
 #     $reading: Reading
-sub isTypeDevReadingExcluded($$$$$) {
-  my ($hash, $direction, $type, $devName, $reading) = @_;
+sub isTypeDevReadingExcluded { #($$$$$) {
+  #my ($hash, $direction, $type, $devName, $reading) = @_;
+  my $hash      = shift // return;
+  my $direction = shift // carp q[No direction provided!]   && return;
+  my $type      = shift // carp q[No device type provided!] && return;
+  my $devName   = shift // carp q[No device name provided!] && return;
+  my $reading   = shift // carp q[No reading provided!]     && return;
 
   # pruefen, ob im Geraet ignore steht
   my $devDisable = $attr{$devName}{$hash->{+HS_PROP_NAME_PREFIX}.CTRL_ATTR_NAME_IGNORE};
@@ -2395,24 +2471,36 @@ sub isTypeDevReadingExcluded($$$$$) {
 #     $hash:    HASH
 #     $devName: Geraetename
 #     $reading: Reading (ggf. for future use)
-sub isDoForward($$$) {
-  my ($hash, $devName, $reading) = @_;
+sub isDoForward { #($$$) {
+  #my ($hash, $devName, $reading) = @_;
+  my $hash    = shift // return;
+  my $devName = shift // carp q[No device name provided!] && return;
+  #my $reading = shift // carp q[No reading provided!] && return;
+
   my $doForward = $attr{$devName}{$hash->{+HS_PROP_NAME_PREFIX}.CTRL_ATTR_NAME_FORWARD};
 
   $doForward = 'none' if (!defined($doForward) and ($defs{$devName}->{TYPE} eq 'dummy')); # Hack fuer Dummy-Devices
 
-  $doForward = 'all' unless defined $doForward;
-
+  #$doForward = 'all' if !defined $doForward;
+  
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] isDoForward $devName => $doForward");
 
-  return 1 if $doForward eq 'all';
+  return 1 if !defined $doForward || $doForward eq 'all';
   return 0;
 }
 
 # MQTT-Nachricht senden
 # Params: Bridge-Hash, Topic, Nachricht, QOS- und Retain-Flags
-sub doPublish($$$$$$$$) {
-  my ($hash,$device,$reading,$topic,$message,$qos,$retain,$resendOnConnect) = @_;
+sub doPublish { #($$$$$$$$) {
+  #my ($hash,$device,$reading,$topic,$message,$qos,$retain,$resendOnConnect) = @_;
+  my $hash            = shift // return;
+  my $device          = shift // carp q[No device provided!]  && return;
+  my $reading         = shift // carp q[No reading provided!] && return;
+  my $topic           = shift // carp q[No topic provided!]   && return;
+  my $message         = shift // carp q[No message provided!] && return;
+  my $qos             = shift // 0;
+  my $retain          = shift // 0;
+  my $resendOnConnect = shift;
 
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] doPublish: topic: $topic, msg: $message, resend mode: ".(defined($resendOnConnect)?$resendOnConnect:"no"));
   if(!isConnected($hash)) {
@@ -2459,7 +2547,7 @@ sub doPublish($$$$$$$$) {
     return 'stored';
   }
 
-  Log3($hash->{NAME},5,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] publish: $topic => $message (qos: $qos, retain: ".(defined($retain)?$retain:'0').")");
+  Log3($hash->{NAME},5,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] publish: $topic => $message (qos: $qos, retain: $retain");
 
   if (isIODevMQTT2($hash)){ #if ($hash->{+HELPER}->{+IO_DEV_TYPE} eq 'MQTT2_SERVER') {
     # TODO: publish MQTT2
@@ -2486,7 +2574,7 @@ sub doPublish($$$$$$$$) {
     return 'empty topic or message';
   } else {
     my $iodt = retrieveIODevType($hash);
-    $iodt = 'undef' unless defined $iodt;
+    $iodt = 'undef' if !defined $iodt;
     Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE: [$hash->{NAME}] unknown IODev: ".$iodt);
     return 'unknown IODev';
   }
@@ -2496,11 +2584,17 @@ sub doPublish($$$$$$$$) {
 # Params: Bridge-Hash, Device-Hash, 
 #         Modus (Topics entsprechend Readings- oder Attributen-Tabelleneintraegen suchen), 
 #         Name des Readings/Attributes, Wert
-sub publishDeviceUpdate($$$$$) {
-  my ($hash, $devHash, $mode, $reading, $value) = @_;
+sub publishDeviceUpdate { #($$$$$) {
+#  my ($hash, $devHash, $mode, $reading, $value) = @_;
+  my $hash    = shift // return;
+  my $devHash = shift // carp q[No hash for target device provided!] && return;
+  my $mode    = shift // q{R};
+  my $reading = shift // carp q[No reading provided!] && return;
+  my $value   = shift // q{\0} ; # TODO: pruefen: oder doch ""?;
+
   my $devn = $devHash->{NAME};
   my $type = $devHash->{TYPE};
-  $mode = 'R' unless defined $mode;
+  #$mode = 'R' unless defined $mode;
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] publishDeviceUpdate for $type, $mode, $devn, $reading, $value");  
   # bestimmte bekannte types und readings ausschliessen (vor allem 'transmission-state' in der eigenen Instanz, das fuert sonst zu einem Endlosloop)
   return if($type eq "MQTT_GENERIC_BRIDGE");
@@ -2521,8 +2615,10 @@ sub publishDeviceUpdate($$$$$) {
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] publishDeviceUpdate for $devn, $reading, $value");
   my $pubRecList = getDevicePublishRec($hash, $devn, $reading);
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] publishDeviceUpdate pubRec: ".Dumper($pubRecList));
+  
+  #Beta-User: direct return?
   if(defined($pubRecList)) {
-    foreach my $pubRec (@$pubRecList) {
+    for my $pubRec (@$pubRecList) {
   if(defined($pubRec)) {
     # my $msgid;
         #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] publishDeviceUpdate pubRec: ".Dumper($pubRec));
@@ -2533,7 +2629,7 @@ sub publishDeviceUpdate($$$$$) {
     my $qos = $pubRec->{'qos'};
     my $retain = $pubRec->{'retain'};
     my $expression = $pubRec->{'expression'};
-    my $base = $pubRec->{'base'};
+    my $base = $pubRec->{'base'} // q{};
     my $resendOnConnect = $pubRec->{'resendOnConnect'};
     # # damit beim start die Attribute einmal uebertragen werden => geht wohl mangels event beim start nicht
     # if(!$main::init_done and !defined($resendOnConnect) and ($mode eq 'A')) {
@@ -2541,9 +2637,9 @@ sub publishDeviceUpdate($$$$$) {
     #   Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] queueing Attr-Chang at start");
     # }
 
-    $base='' unless defined $base;
+    #$base='' unless defined $base;
 
-        $value="\0" unless defined $value; # TODO: pruefen: oder doch ""?
+        #$value="\0" unless defined $value; # TODO: pruefen: oder doch ""?
 
     my $redefMap=undef;
     my $message=$value;
@@ -2562,8 +2658,8 @@ sub publishDeviceUpdate($$$$$) {
           #  $defMap->{'room'} = AttrVal($devn,'room','');
           #}
           if(!defined($defMap->{'uid'}) and defined($defs{$devn})) {
-            $defMap->{'uid'} = $defs{$devn}->{'FUUID'};
-            $defMap->{'uid'} = '' unless defined $defMap->{'uid'};
+            $defMap->{'uid'} = $defs{$devn}->{'FUUID'} // q{};
+            #$defMap->{'uid'} = '' unless defined $defMap->{'uid'};
           }
           #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> DEBUG: >>> expression: $expression : ".Dumper($defMap));
           my $ret = _evalValue2($hash->{NAME},$expression,{'topic'=>$topic,'device'=>$devn,'reading'=>$reading,'name'=>$name,'time'=>TimeNow(),%$defMap},1);
@@ -2591,10 +2687,10 @@ sub publishDeviceUpdate($$$$$) {
     my $updated = 0;
     if(defined($redefMap)) {
       #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> DEBUG: redefMap: ".Dumper($redefMap));
-      foreach my $key (keys %{$redefMap}) {
+      for my $key (keys %{$redefMap}) {
         my $val = $redefMap->{$key};
         my $r = doPublish($hash,$devn,$reading,$key,$val,$qos,$retain,$resendOnConnect);
-        $updated = 1 unless defined $r;
+        $updated = 1 if !defined $r;
       }
     } elsif (defined $topic and defined $message) {
       my $r = doPublish($hash,$devn,$reading,$topic,$message,$qos,$retain,$resendOnConnect);  
@@ -2607,107 +2703,85 @@ sub publishDeviceUpdate($$$$$) {
   }
 }
   }
+  return;
 }
 
 # Routine fuer FHEM Attr
-sub Attr($$$$) {
+sub Attr { #($$$$) {
   my ($command,$name,$attribute,$value) = @_;
 
-  my $hash = $defs{$name};
-  ATTRIBUTE_HANDLER: {
-    # Steuerattribute
-    $attribute eq CTRL_ATTR_NAME_GLOBAL_PREFIX.CTRL_ATTR_NAME_DEFAULTS and do {
-      if ($command eq "set") {
-        RefreshGlobalTable($hash, $attribute, $value);
-      } else {
-        RefreshGlobalTable($hash, $attribute, undef);
-      }
-      last;
-    };
-    $attribute eq CTRL_ATTR_NAME_GLOBAL_PREFIX.CTRL_ATTR_NAME_ALIAS and do {
-      if ($command eq "set") {
-        RefreshGlobalTable($hash, $attribute, $value);
-      } else {
-        RefreshGlobalTable($hash, $attribute, undef);
-      }
-      last;
-    };
-    $attribute eq CTRL_ATTR_NAME_GLOBAL_PREFIX.CTRL_ATTR_NAME_PUBLISH and do {
-      if ($command eq "set") {
-        RefreshGlobalTable($hash, $attribute, $value);
-      } else {
-        RefreshGlobalTable($hash, $attribute, undef);
-      }
-      last;
-    };
-    $attribute eq CTRL_ATTR_NAME_GLOBAL_TYPE_EXCLUDE and do {
-      if ($command eq "set") {
-        defineGlobalTypeExclude($hash,$value);
-      } else {
-        defineGlobalTypeExclude($hash,undef);
-      }
-      last;
-    };
-    $attribute eq CTRL_ATTR_NAME_GLOBAL_DEV_EXCLUDE and do {
-      if ($command eq "set") {
-        defineGlobalDevExclude($hash,$value);
-      } else {
-        defineGlobalDevExclude($hash,undef);
-      }
-      last;
-    };
-     # $attribute eq "XXX" and do {
-    #   if ($command eq "set") {
-    #     #$hash->{publishState} = $value;
-    #   } else {
-    #     #delete $hash->{publishState};
-    #   }
-    #   last;
-    # };
-    my $prefix = $hash->{+HS_PROP_NAME_PREFIX};
-    (($attribute eq $prefix.CTRL_ATTR_NAME_DEFAULTS) or 
+  my $hash = $defs{$name} // return;
+  
+  # Steuerattribute
+  if (   $attribute eq CTRL_ATTR_NAME_GLOBAL_PREFIX.CTRL_ATTR_NAME_DEFAULTS
+      || $attribute eq CTRL_ATTR_NAME_GLOBAL_PREFIX.CTRL_ATTR_NAME_ALIAS
+      || $attribute eq CTRL_ATTR_NAME_GLOBAL_PREFIX.CTRL_ATTR_NAME_PUBLISH) {
+    if ($command eq "set") {
+      RefreshGlobalTable($hash, $attribute, $value);
+    } else {
+      RefreshGlobalTable($hash, $attribute, undef);
+    }
+    return;
+  }
+  if ($attribute eq CTRL_ATTR_NAME_GLOBAL_TYPE_EXCLUDE) {
+    if ($command eq "set") {
+      defineGlobalTypeExclude($hash,$value);
+    } else {
+      defineGlobalTypeExclude($hash,undef);
+    }
+    return;
+  }
+  if ($attribute eq CTRL_ATTR_NAME_GLOBAL_DEV_EXCLUDE) {
+    if ($command eq "set") {
+      defineGlobalDevExclude($hash,$value);
+    } else {
+      defineGlobalDevExclude($hash,undef);
+    }
+    return;
+  }
+
+  my $prefix = $hash->{+HS_PROP_NAME_PREFIX};
+  if (($attribute eq $prefix.CTRL_ATTR_NAME_DEFAULTS) or 
       ($attribute eq $prefix.CTRL_ATTR_NAME_ALIAS) or 
       ($attribute eq $prefix.CTRL_ATTR_NAME_PUBLISH) or 
       ($attribute eq $prefix.CTRL_ATTR_NAME_SUBSCRIBE) or 
       ($attribute eq $prefix.CTRL_ATTR_NAME_IGNORE) or
-      ($attribute eq $prefix.CTRL_ATTR_NAME_FORWARD)
-    ) and do {
-      if ($command eq "set") {
-        return "this attribute is not allowed here";
-      }
-      last;
-    };
+      ($attribute eq $prefix.CTRL_ATTR_NAME_FORWARD)) {
+              
+    if ($command eq "set") {
+      return "this attribute is not allowed here";
+    }
+    return;
+    }
     
     # Gateway-Device
-    $attribute eq "IODev" and do {
-      my $ioDevType = undef;
-      $ioDevType = $defs{$value}{TYPE} if defined ($value) and defined ($defs{$value});
-      $hash->{+HELPER}->{+IO_DEV_TYPE} = $ioDevType;
+  if ($attribute eq "IODev") {
+    my $ioDevType = undef;
+    $ioDevType = $defs{$value}{TYPE} if defined ($value) and defined ($defs{$value});
+    $hash->{+HELPER}->{+IO_DEV_TYPE} = $ioDevType;
       
-      if ($command eq "set") {
-        my $oldValue = $attr{$name}{IODev};
-        if ($init_done) {
-          unless (defined ($oldValue) and ($oldValue eq $value) ) {
-            #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] attr: change IODev");
-            MQTT::client_stop($hash) if defined($attr{$name}{IODev}) and ($attr{$name}{IODev} eq 'MQTT');
-            $attr{$name}{IODev} = $value;
-            firstInit($hash);
-          }
-        }
-      } else {
-        if ($init_done) {
-          MQTT::client_stop($hash) if defined ($ioDevType) and ($ioDevType eq 'MQTT');
+    if ($command eq "set") {
+      my $oldValue = $attr{$name}{IODev};
+      if ($init_done) {
+        unless (defined ($oldValue) and ($oldValue eq $value) ) {
+          #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] attr: change IODev");
+          MQTT::client_stop($hash) if defined($attr{$name}{IODev}) and ($attr{$name}{IODev} eq 'MQTT');
+          $attr{$name}{IODev} = $value;
+          firstInit($hash);
         }
       }
-        
-      last;
-    };
+    } else {
+      if ($init_done) {
+         MQTT::client_stop($hash) if defined ($ioDevType) and ($ioDevType eq 'MQTT');
+      }
+    }
     return;
   }
+  return;
 }
 
 # CallBack-Handler fuer IODev beim Connect
-sub ioDevConnect($) {
+sub ioDevConnect {
   my $hash = shift;
   #return if isIODevMQTT2($hash); #if $hash->{+HELPER}->{+IO_DEV_TYPE} eq 'MQTT2_SERVER'; # TODO
 
@@ -2718,8 +2792,10 @@ sub ioDevConnect($) {
 
   # resend stored msgs => doPublish (...., undef)
   my $queue = $hash->{+HELPER}->{+HS_PROP_NAME_PUB_OFFLINE_QUEUE};
-  if (defined($queue)) {
-    foreach my $topic (keys %{$queue}) {
+
+  return if !defined($queue);
+  #if (defined($queue)) {
+    for my $topic (keys %{$queue}) {
       my $topicQueue = $queue->{$topic};
       my $topicRec = undef;
       while ($topicRec = shift(@$topicQueue)) {
@@ -2733,27 +2809,33 @@ sub ioDevConnect($) {
         updatePubTime($hash,$devn,$reading) unless defined $r;
       }
     }
-  }
-
+  #}
+  return;
 }
 
 # CallBack-Handler fuer IODev beim Disconnect
-sub ioDevDisconnect($) {
+sub ioDevDisconnect {
   my $hash = shift;
   #return if isIODevMQTT2($hash); #if $hash->{+HELPER}->{+IO_DEV_TYPE} eq 'MQTT2_SERVER';
 
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] ioDevDisconnect");
 
   # TODO ? 
+  return;
 }
 
 # Per MQTT-Empfangenen Aktualisierungen an die entsprechende Geraete anwenden
 # Params: Bridge-Hash, Modus (R=Readings, A=Attribute), Device, Reading/Attribute-Name, Nachricht
-sub doSetUpdate($$$$$) {
-  my ($hash,$mode,$device,$reading,$message) = @_;
+sub doSetUpdate { #($$$$$) {
+  #my ($hash,$mode,$device,$reading,$message) = @_;
+  my $hash    = shift // return;
+  my $mode    = shift // q{unexpected!};
+  my $device  = shift // carp q[No device provided!]  && return;
+  my $reading = shift // carp q[No reading provided!] && return;
+  my $message = shift; # // carp q[No message content!]  && return;
 
-  my $dhash = $defs{$device};
-  return unless defined $dhash;
+  my $dhash = $defs{$device} // carp qq[No device hash for $device registered!]  && return;
+  #return unless defined $dhash;
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE: [$hash->{NAME}] setUpdate enter: update: $reading = $message");
   my $doForward = isDoForward($hash, $device,$reading);
 
@@ -2806,8 +2888,10 @@ sub doSetUpdate($$$$$) {
 }
 
 # Call von IODev-Dispatch (e.g.MQTT2)
-sub Parse($$) {
-  my ($iodev, $msg) = @_;
+sub Parse {
+  my $iodev = shift // carp q[No IODev provided!] && return;;
+  my $msg   = shift // carp q[No message to analyze!] && return;;
+
   my $ioname = $iodev->{NAME};
   #my $iotype = $iodev->{TYPE};
   #Log3($iodev->{NAME},1,"MQTT_GENERIC_BRIDGE: Parse: IODev: $ioname");
@@ -2826,7 +2910,7 @@ sub Parse($$) {
   my @instances = devspec2array("TYPE=MQTT_GENERIC_BRIDGE");
   my @ret=();
   my $forceNext = 0;
-  foreach my $dev (@instances) {
+  for my $dev (@instances) {
     my $hash = $defs{$dev};
     # Name mit IODev vegleichen
     my $iiodn = retrieveIODevName($hash);
@@ -2859,8 +2943,10 @@ sub Parse($$) {
 }
 
 # Routine MQTT-Message Callback
-sub onmessage($$$) {
-  my ($hash,$topic,$message) = @_;
+sub onmessage {
+  my $hash    = shift // return;
+  my $topic   = shift // carp q[No topic provided!] && return;
+  my $message = shift // q{}; #might be empty... // carp q[No message content!] && return;
   #CheckInitialization($hash);
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] onmessage: $topic => $message");
 
@@ -2875,17 +2961,17 @@ sub onmessage($$$) {
 
   my $updated = 0;
   my @updatedList;
-  foreach my $deviceKey (keys %{$fMap}) {
+  for my $deviceKey (keys %{$fMap}) {
         my $device = $fMap->{$deviceKey}->{'device'};
         my $reading = $fMap->{$deviceKey}->{'reading'};
         my $mode = $fMap->{$deviceKey}->{'mode'};
         my $expression = $fMap->{$deviceKey}->{'expression'};
 
-        next unless defined $device;
-        next unless defined $reading;
+        next if !defined $device;
+        next if !defined $reading;
 
         my $dhash = $defs{$device};
-        next unless defined $dhash;
+        next if !defined $dhash;
         next if(isTypeDevReadingExcluded($hash, 'sub', $dhash->{TYPE}, $device, $reading));
 
         my $redefMap=undef;
@@ -2925,7 +3011,7 @@ sub onmessage($$$) {
         next unless defined $message;
 
         if(defined($redefMap)) {
-          foreach my $key (keys %{$redefMap}) {
+          for my $key (keys %{$redefMap}) {
             my $val = $redefMap->{$key};
             my $r = doSetUpdate($hash,$mode,$device,$key,$val);
             unless (defined($r)) {
@@ -2950,7 +3036,7 @@ sub onmessage($$$) {
   return;
 }
 1;
-
+__END__
 =pod
 =encoding utf8
 =item [device]
