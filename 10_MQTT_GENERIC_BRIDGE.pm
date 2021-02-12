@@ -394,7 +394,7 @@ use strict;
 use warnings;
 use AttrTemplate;
 use Carp qw(carp);
-##no critic qw(constant Package) #Beta-User: prototype might be discussed later
+##no critic qw(constant Package)
 
 use GPUtils qw(:all);
 
@@ -605,10 +605,10 @@ sub Define {
 
 
   $hash->{+HELPER}->{+HS_PROP_NAME_DEVICE_CNT}   = 0;
-  $hash->{+HELPER}->{+HS_PROP_NAME_INCOMING_CNT} = 0 unless defined $hash->{+HELPER}->{+HS_PROP_NAME_INCOMING_CNT};
-  $hash->{+HELPER}->{+HS_PROP_NAME_OUTGOING_CNT} = 0 unless defined $hash->{+HELPER}->{+HS_PROP_NAME_OUTGOING_CNT};
-  $hash->{+HELPER}->{+HS_PROP_NAME_UPDATE_R_CNT} = 0 unless defined $hash->{+HELPER}->{+HS_PROP_NAME_UPDATE_R_CNT};
-  $hash->{+HELPER}->{+HS_PROP_NAME_UPDATE_S_CNT} = 0 unless defined $hash->{+HELPER}->{+HS_PROP_NAME_UPDATE_S_CNT};
+  $hash->{+HELPER}->{+HS_PROP_NAME_INCOMING_CNT} = 0 if !defined $hash->{+HELPER}->{+HS_PROP_NAME_INCOMING_CNT};
+  $hash->{+HELPER}->{+HS_PROP_NAME_OUTGOING_CNT} = 0 if !defined $hash->{+HELPER}->{+HS_PROP_NAME_OUTGOING_CNT};
+  $hash->{+HELPER}->{+HS_PROP_NAME_UPDATE_R_CNT} = 0 if !defined $hash->{+HELPER}->{+HS_PROP_NAME_UPDATE_R_CNT};
+  $hash->{+HELPER}->{+HS_PROP_NAME_UPDATE_S_CNT} = 0 if !defined $hash->{+HELPER}->{+HS_PROP_NAME_UPDATE_S_CNT};
 
   #TODO: aktivieren, wenn gebraucht wird
   $hash->{+HELPER}->{+HS_PROP_NAME_INTERVAL} = 60; # Sekunden
@@ -963,8 +963,8 @@ sub _takeDefaults { #($$$$) {
   #if (defined($valMap->{$key})) {
     # ggf. nicht ueberschreiben (damit nicht undefiniertes VErhalten entsteht,
     # wenn mit und ohne Prefx gleichzeitig angegeben wird. So wird die Definition mit Prefix immer gewinnen)
-    $map->{$dev}->{':defaults'}->{$key}=$valMap->{$key} unless defined $map->{$dev}->{':defaults'}->{$key};
-    $map->{$dev}->{':defaults'}->{$key}=$valMap->{$key} unless defined $map->{$dev}->{':defaults'}->{$key};
+    $map->{$dev}->{':defaults'}->{$key}=$valMap->{$key} if !defined $map->{$dev}->{':defaults'}->{$key};
+    $map->{$dev}->{':defaults'}->{$key}=$valMap->{$key} if !defined $map->{$dev}->{':defaults'}->{$key};
   } else {
     $map->{$dev}->{':defaults'}->{'pub:'.$key}=$valMap->{$key};
     $map->{$dev}->{':defaults'}->{'sub:'.$key}=$valMap->{$key};
@@ -1035,8 +1035,8 @@ sub CreateSingleDeviceTableAttrAlias { #($$$$) {
           $name = $pref;
           # ggf. nicht ueberschreiben (damit nicht undefiniertes Verhalten entsteht, 
           # wenn mit und ohne Prefx gleichzeitig angegeben wird. So wird die Definition mit Prefix immer gewinnen)
-          $map->{$dev}->{':alias'}->{"pub:".$name}=$val unless defined $map->{$dev}->{':alias'}->{"pub:".$name};
-          $map->{$dev}->{':alias'}->{"sub:".$name}=$val unless defined $map->{$dev}->{':alias'}->{"sub:".$name};
+          $map->{$dev}->{':alias'}->{"pub:".$name}=$val if !defined $map->{$dev}->{':alias'}->{"pub:".$name};
+          $map->{$dev}->{':alias'}->{"sub:".$name}=$val if !defined $map->{$dev}->{':alias'}->{"sub:".$name};
         }
       }
       return defined($map->{$dev}->{':alias'});
@@ -1245,7 +1245,9 @@ sub getDevicePublishRecIntern { #($$$$$$$) {
 
   # resendOnConnect Option
   my $resendOnConnect = $readingMap->{'resendOnConnect'}                //
-                        $wildcardReadingMap->{'resendOnConnect'}        // $globalReadingMap->{'resendOnConnect'}          //$globalWildcardReadingsMap->{'resendOnConnect'} // undef;
+                        $wildcardReadingMap->{'resendOnConnect'}        // 
+                        $globalReadingMap->{'resendOnConnect'}          //
+                        $globalWildcardReadingsMap->{'resendOnConnect'} // undef;
 
   # map name
   my $name = $devMap->{':alias'}->{'pub:'.$readingKey}      //
@@ -1446,12 +1448,18 @@ sub searchDeviceForTopic {
           my $reading = undef;
           my $oReading = $rmap->{'reading'};
           my $fname = $+{name};
+          my $nReading; 
           
-          my $nReading 
-                = $map->{$dname}->{':alias'}->{'sub:'.$fname}   //
-                  $globalMap->{':alias'}->{'sub:'.$fname}       //
-                  $fname                                        //
-                  $+{reading};
+          if(defined($fname)) {
+            if (defined($map->{$dname}->{':alias'})) {
+              $nReading = $map->{$dname}->{':alias'}->{'sub:'.$fname};
+            }
+            if (!defined($nReading) && defined($globalMap) && defined($globalMap->{':alias'})) {
+              $nReading = $globalMap->{':alias'}->{'sub:'.$fname};
+            }
+            $nReading = $fname if !defined $nReading;
+          }
+          $nReading = $+{reading} if !defined $nReading;
           
           if( !defined($nReading) || $oReading eq $nReading ) {
             $reading = $oReading;
