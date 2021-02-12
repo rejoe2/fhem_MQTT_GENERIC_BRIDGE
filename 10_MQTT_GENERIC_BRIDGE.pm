@@ -581,7 +581,7 @@ sub Define {
   # aus dem Array einen kommagetrennten String erstellen
   my $devspec = join(",", @devspeca);
   # Doppelte Kommas entfernen.
-  $devspec =~s/,+/,/g;
+  $devspec =~s{,+}{,}gx;
   # damit ist jetzt Trennung der zu ueberwachenden Geraete mit Kommas, Leezeichen, Kommas mit Leerzeichen und Mischung davon moeglich
   my $oldprefix = $hash->{+HS_PROP_NAME_PREFIX};
   my $olddevspec = $hash->{+HS_PROP_NAME_DEVSPEC};
@@ -1081,12 +1081,12 @@ sub CreateSingleDeviceTableAttrPublish { #($$$$) {
         my $val = $named->{$param};
         my($name,$ident) = split(":",$param);
         if(!defined($ident) || !defined($name)) { next; }
-        if($ident =~ m{\Atopic|readings-topic|atopic|attr-topic|qos|retain|expression|resendOnConnect|autoResendInterval\z}x) {
+        if($ident =~ m{\Atopic|(readings-|a|attr-)topic|qos|retain|expression|resendOnConnect|autoResendInterval\z}x) {
 
           #($ident eq 'stopic') or ($ident eq 'set-topic') or # stopic nur bei subscribe
-          my @nameParts = split(/\|/, $name);
+          my @nameParts = split m{\|}xms, $name;
           while (@nameParts) {
-            my $namePart = shift(@nameParts);
+            my $namePart = shift @nameParts;
             next if $namePart eq '';
             $map->{$dev}->{':publish'}->{$namePart}->{$ident}=$val;
 
@@ -1298,6 +1298,7 @@ sub retrieveQosRetainExpression {
   my $wildcardReadingMap        = shift;
   my $defaultReadingMap         = shift;
   my $readingMap                = shift; # none of the args seems to be mandatory...
+  
   my $qos        = $readingMap->{'qos'}                         //
                    $wildcardReadingMap->{'qos'}                 //
                    $defaultReadingMap->{'pub:qos'}              //
@@ -1386,7 +1387,7 @@ sub _evalValue2 {
   # TODO : Maskierte Klammern unterstuetzen? $str =~ m/^(.*)(\\{.*\\})(.*)({.*})(.*)$/;; $1.$2.$3.$4.$5 - irgendwie so
   #if($str =~ m/^{.*}$/) {
   #if($str =~ m/^(.*)({.*})(.*)$/) {
-  if($str =~ m/\A(.*)(\{.*})(.*)\z/) { # forum https://forum.fhem.de/index.php/topic,117659.msg1121004.html#msg1121004
+  if($str =~ m{\A(.*)(\{.*\})(.*)\z}x) { # forum https://forum.fhem.de/index.php/topic,117659.msg1121004.html#msg1121004
     my $s1 = $1 // q{}; #$s1='' unless defined $s1;
     my $s2 = $2 // q{}; #$s2='' unless defined $s2;
     my $s3 = $3 // q{}; #$s3='' unless defined $s3;
@@ -1417,7 +1418,7 @@ sub _evalValue2 {
         } else {
           #Log3('xxx',1,"MQTT_GENERIC_BRIDGE:DEBUG:> replace2: $ret : $pname => $val");
           #$ret =~ s/\Q$pname\E/$val/g;
-          $s2 =~ s/\Q$pname\E/$val/g;
+          $s2 =~ s{\Q$pname\E}{$val}gx;
           #Log3('xxx',1,"MQTT_GENERIC_BRIDGE:DEBUG:> replace2 done: $s2");
         }
       }
@@ -1578,7 +1579,8 @@ sub CreateSingleDeviceTableAttrSubscribe { #($$$$) {
             my $rmap = $dmap->{$namePart};
             $rmap = {} unless defined $rmap;
             $rmap->{'reading'}=$namePart;
-            $rmap->{'wildcardTarget'} = $namePart =~ /^\*/;
+            #$rmap->{'wildcardTarget'} = $namePart =~ /^\*/;
+            $rmap->{'wildcardTarget'} = $namePart =~ m{\A\*}x;
             #$rmap->{'evalTarget'} = $namePart =~ /^{.+}.*$/;
             $rmap->{'dev'}=$dev;
             $rmap->{$ident}=$val;
@@ -1616,19 +1618,21 @@ sub CreateSingleDeviceTableAttrSubscribe { #($$$$) {
               } else {
               my $old = '#reading';
               my $new = '$reading';
-              $topic =~ s/\Q$old\E/$new/g;
+              #$topic =~ s/\Q$old\E/$new/g;
+              $topic =~ s{\Q$old\E}{$new}gx;
               $old = '#name';
               $new = '$name';
-              $topic =~ s/\Q$old\E/$new/g;
+              #$topic =~ s/\Q$old\E/$new/g;
+              $topic =~ s{\Q$old\E}{$new}gx;
                 #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] sub: Topic old: $topic");
                 #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] sub: Topic new: $topic");
 
               $rmap->{'topicOrig'} = $val;
               $rmap->{'topicExp'}=createRegexpForTopic($topic);
 
-              $topic =~ s/\$reading/+/g;
-              $topic =~ s/\$name/+/g;
-              $topic =~ s/\$device/+/g;
+              $topic =~ s{\$reading}{+}gx;
+              $topic =~ s{\$name}{+}gx;
+              $topic =~ s{\$device}{+}gx;
               }
               $rmap->{'topic'} = $topic;
             } # <- topic
@@ -1968,8 +1972,8 @@ sub Get { #($$$@) {
       $debugInfo.= "exclude reading map: ".Dumper($hash->{+HS_PROP_NAME_GLOBAL_EXCLUDES_READING})."\n\n";
       $debugInfo.= "exclude device map: ".Dumper($hash->{+HS_PROP_NAME_GLOBAL_EXCLUDES_DEVICES})."\n\n";
 
-      $debugInfo =~ s/</&lt;/g;      
-      $debugInfo =~ s/>/&gt;/g;      
+      $debugInfo =~ s{<}{&lt;}gx;
+      $debugInfo =~ s{>}{&gt;}gx;
 
       return $debugInfo;
     };
@@ -1990,12 +1994,12 @@ sub Get { #($$$@) {
       for my $dname (sort keys %{$hash->{+HS_TAB_NAME_DEVICES}}) {
         if($dname ne ":global") {
           if($args) {
-            next unless $dname =~ /^$args$/;
+            next if $dname !~ m{\A$args\z}x;
           }
-          $res.=$dname."\n";
+          $res.= "${dname}\n";
         }
       }
-      $res = "no devices found" unless ($res ne "");
+      return "no devices found" if $res eq '';
       return $res;
     };
     $command eq "devinfo" and do {
@@ -2102,23 +2106,30 @@ sub Notify {
     my $max = int(@{$dev->{CHANGED}});
     for (my $i = 0; $i < $max; $i++) {
       my $s = $dev->{CHANGED}[$i];
-      $s = "" if(!defined($s));
+      $s = q{} if(!defined($s));
       # tab, CR, LF durch spaces ersetzen
-      $s =~ s/[\r\n\t]/ /g;
+      $s =~ s{[\r\n\t]}{ }gx;
       #$s =~ s/ [ ]+/ /g;
-      if($s =~ m{\ARENAMED ([^ ]*) ([^ ]*)\z}) {
+      if($s =~ m{\ARENAMED\s+([^ ]*)\s+([^ ]*)\z}x) {
+      #if($s =~ m{\ARENAMED ([^ ]*) ([^ ]*)\z}) {
         # Device renamed
         my ($old, $new) = ($1, $2);
         #Log3($hash->{NAME},5,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] Device renamed: $old => $new");
         # wenn ein ueberwachtes device, tabelle korrigieren
         RenameDeviceInTable($hash, $old, $new);
-      } elsif($s =~ m/^DELETED ([^ ]*)$/) {
+        next;
+      } 
+      if($s =~ m{\ADELETED\s+([^ ]*)\z}x) {
+        #elsif($s =~ m/^DELETED ([^ ]*)$/) {
         # Device deleted
         my ($name) = ($1);
         #Log3($hash->{NAME},5,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] Device deleted: $name");
         # wenn ein ueberwachtes device, tabelle korrigieren
         DeleteDeviceInTable($hash, $name);
-      } elsif($s =~ m/^ATTR ([^ ]*) ([^ ]*) (.*)$/) {
+        next;
+      } 
+      if($s =~ m{\AATTR\s+([^ ]*)\s+([^ ]*)\s+(.*)\z}x) {
+        #elsif($s =~ m/^ATTR ([^ ]*) ([^ ]*) (.*)$/) {
         # Attribut created or changed
         my ($sdev, $attrName, $val) = ($1, $2, $3);
         #Log3($hash->{NAME},5,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] attr created/changed: $sdev : $attrName = $val");
@@ -2131,7 +2142,10 @@ sub Notify {
           # check/ publish atopic => val
           publishDeviceUpdate($hash, $defs{$sdev}, 'A', $attrName, $val);
         }
-      } elsif($s =~ m/^DELETEATTR ([^ ]*) ([^ ]*)$/) {
+        next;
+      } 
+      if($s =~ m{\ADELETEATTR\s+([^ ]*)\s+([^ ]*)\z}x) {
+        #elsif($s =~ m/^DELETEATTR ([^ ]*) ([^ ]*)$/) {
         # Attribut deleted
         my ($sdev, $attrName) = ($1, $2);
         #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] attr deleted: $sdev : $attrName");
@@ -2143,6 +2157,7 @@ sub Notify {
           # check/ publish atopic => null
           publishDeviceUpdate($hash, $defs{$sdev}, 'A', $attrName, undef);
         }
+        next;
       }
     }
     return;
@@ -2196,9 +2211,10 @@ sub checkPublishDeviceReadingsUpdates {
     my $globalDataRecord = $devDataTab->{':global'};
     return '' if !defined $globalDataRecord;
     my $globalPublishMap = $globalDataRecord->{':publish'};
-    return '' if !defined $globalPublishMap;
-    my $size = int(keys %{$globalPublishMap});
-    return '' unless ($size>0);
+    #return '' if !defined $globalPublishMap;
+    #my $size = int(keys %{$globalPublishMap});
+    #return '' unless ($size>0);
+    return '' if !defined $globalPublishMap || !(%{$globalPublishMap});
   }
 
   for my $event (@{deviceEvents($dev,1)}) {
@@ -2476,23 +2492,23 @@ sub doPublish { #($$$$$$$$) {
         my $entry = {'topic'=>$topic, 'message'=>$message, 'qos'=>$qos, 'retain'=>$retain, 
                      'resendOnConnect'=>$resendOnConnect,'device'=>$device,'reading'=>$reading};
         my $topicQueue = $queue->{$topic};
-        unless (defined($topicQueue)) {
+        if (!defined($topicQueue)) {
           $topicQueue = [$entry];
         } 
         else {
           if ($resendOnConnect eq 'first') {
-            if (scalar @$topicQueue == 0) {
-              $topicQueue = [$entry];  
-            }
+            #if (scalar @$topicQueue == 0) {
+              $topicQueue = [$entry] if !(@$topicQueue);  
+            #}
           } elsif($resendOnConnect eq 'last') {
             $topicQueue = [$entry];
           } else { # all
-            push (@$topicQueue, $entry);
+            push @$topicQueue, $entry;
           } 
         }
         # check max lng
-        my $max = $hash->{+HS_PROP_NAME_PUB_OFFLINE_QUEUE_MAX_CNT_PROTOPIC};
-        $max = 10 unless defined $max;
+        my $max = $hash->{+HS_PROP_NAME_PUB_OFFLINE_QUEUE_MAX_CNT_PROTOPIC} // 10;
+        #$max = 10 unless defined $max;
         while (scalar @$topicQueue > $max) {
           shift @$topicQueue;
         }
@@ -2860,11 +2876,11 @@ sub Parse {
 
   # no support for autocreate
   #my $autocreate = "no";
-  if($msg =~ m/^autocreate=([^\0]+)\0(.*)$/s) {
-    #$autocreate = $1;
-    $msg = $2;
-  }
-
+  #if($msg =~ m{\Aautocreate=([^\0]+)\0(.*)\z}sx) {
+    ##$autocreate = $1;
+    #$msg = $2;
+  #}
+  $msg =~ s{\Aautocreate=([^\0]+)\0(.*)\z}{$2}sx;
   #my ($cid, $topic, $value) = split(":", $msg, 3);
   my ($cid, $topic, $value) = split m{\0}xms, $msg, 3;
   
