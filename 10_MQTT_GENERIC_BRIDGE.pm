@@ -394,7 +394,7 @@ use strict;
 use warnings;
 use AttrTemplate;
 use Carp qw(carp);
-##no critic qw(prototype constant Package) #Beta-User: prototype might be discussed later
+##no critic qw(constant Package) #Beta-User: prototype might be discussed later
 
 use GPUtils qw(:all);
 
@@ -1225,22 +1225,16 @@ sub getDevicePublishRecIntern { #($$$$$$$) {
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] getDevicePublishRec> global readingMap ".Dumper($globalReadingMap));
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] getDevicePublishRec> global wildcardReadingMap ".Dumper($globalWildcardReadingsMap));
   # topic
-  my $topic = undef;
-  $topic = $readingMap->{'topic'} if defined $readingMap;
-  $topic = $wildcardReadingMap->{'topic'} if (defined($wildcardReadingMap) && !defined($topic));
-
-  # global topic
-  $topic = $globalReadingMap->{'topic'} if (defined($globalReadingMap) && !defined($topic));
-  $topic = $globalWildcardReadingsMap->{'topic'} if (defined($globalWildcardReadingsMap) && !defined($topic));
+  my $topic   = $readingMap->{'topic'}                 //
+                $wildcardReadingMap->{'topic'}         //
+                $globalReadingMap->{'topic'}           //
+                $globalWildcardReadingsMap->{'topic'}  // undef;
 
   # attr-topic
-  my $atopic = undef;
-  $atopic = $readingMap->{'atopic'} if defined $readingMap;
-  $atopic = $wildcardReadingMap->{'atopic'} if (defined($wildcardReadingMap) && !defined($atopic));
-
-  # global attr-topic
-  $atopic = $globalReadingMap->{'atopic'} if (defined($globalReadingMap) && !defined($atopic));
-  $atopic = $globalWildcardReadingsMap->{'atopic'} if (defined($globalWildcardReadingsMap) && !defined($atopic));
+  my $atopic  = $readingMap->{'atopic'}                //
+                $wildcardReadingMap->{'atopic'}        //
+                $globalReadingMap->{'atopic'}          //
+                $globalWildcardReadingsMap->{'atopic'} // undef;
 
   # qos & retain & expression
   #my($qos, $retain, $expression) = retrieveQosRetainExpression($globalWildcardReadingsMap, $globalReadingMap, $wildcardReadingMap, $readingMap);
@@ -1250,24 +1244,14 @@ sub getDevicePublishRecIntern { #($$$$$$$) {
   return if !defined($topic) && !defined($atopic) && !defined($expression);
 
   # resendOnConnect Option
-  my $resendOnConnect = undef;
-  $resendOnConnect = $readingMap->{'resendOnConnect'} if defined $readingMap;
-  $resendOnConnect = $wildcardReadingMap->{'resendOnConnect'} if (defined($wildcardReadingMap) && !defined($resendOnConnect));  
-  # global
-  $resendOnConnect = $globalReadingMap->{'resendOnConnect'} if (defined($globalReadingMap) && !defined($resendOnConnect));
-  $resendOnConnect = $globalWildcardReadingsMap->{'resendOnConnect'} if (defined($globalWildcardReadingsMap) && !defined($resendOnConnect));
+  my $resendOnConnect = $readingMap->{'resendOnConnect'}                //
+                        $wildcardReadingMap->{'resendOnConnect'}        // $globalReadingMap->{'resendOnConnect'}          //$globalWildcardReadingsMap->{'resendOnConnect'} // undef;
 
   # map name
-  my $name = undef;
-  if (defined($devMap) && defined($devMap->{':alias'})) {
-    $name = $devMap->{':alias'}->{'pub:'.$readingKey};
-    $name = $devMap->{':alias'}->{'pub:'.$reading} if !defined $name;
-  }
-  if (defined($globalMap) && defined($globalMap->{':alias'}) && !defined($name)) {
-    $name = $globalMap->{':alias'}->{'pub:'.$readingKey};
-    $name = $globalMap->{':alias'}->{'pub:'.$reading} if !defined $name;
-  }
-  $name = $reading if !defined $name;
+  my $name = $devMap->{':alias'}->{'pub:'.$readingKey}      //
+             $devMap->{':alias'}->{'pub:'.$reading}         //
+             $globalMap->{':alias'}->{'pub:'.$readingKey}   //
+             $reading;
 
   # get mode
   my $mode = $readingMap->{'mode'};
@@ -1392,27 +1376,25 @@ sub _evalValue2 {
     my $s2 = $2 // q{}; #$s2='' unless defined $s2;
     my $s3 = $3 // q{}; #$s3='' unless defined $s3;
     no strict "refs";
-    local $@;
+    local $@ = undef;
     my $base = q{};
     my $device = q{};
     my $reading = q{};
     my $name = q{};
     #my $room = '';
-    if(defined($map)) {
+    if (defined($map)) {
       for my $param (keys %{$map}) {
         
         my $pname = '$'.$param;
         my $val = $map->{$param} // $pname;
         #$val=$pname if !defined $val;
         # Sonderlocken fuer $base, $name, $reading, $device, damit auch xxx:topic={$base} geht (sonst koente nur {"$base"} verwendet werden)
-        if($pname eq '$base') {
-          $base = $val;
-        } elsif ($pname eq '$reading') {
-          $reading = $val;
-        } elsif ($pname eq '$device') {
-          $device = $val;
-        } elsif ($pname eq '$name') {
-          $name = $val;
+        if($pname =~ m{\A\$base|\$reading|\$device|\$name}xms ) {
+          $pname eq '$base'    ? $base    = $val :
+          $pname eq '$reading' ? $reading = $val :
+          $pname eq '$device'  ? $device  = $val :
+          #$pname eq '$name'    ? 
+          $name    = $val;
         # } elsif ($pname eq '$room') {
         #   $room = $val;
         } else {
@@ -1425,7 +1407,8 @@ sub _evalValue2 {
     }
     #Log3('xxx',1,"MQTT_GENERIC_BRIDGE:DEBUG:> eval2 expr: $s2");
     #$ret = eval($ret) unless $noEval;
-    $s2 = eval($s2) if !$noEval;
+    $s2 = eval($s2) if !$noEval; ##no critic qw(eval) 
+    #we expressively want user code to be executed! This is added after compile time...
     #Log3('xxx',1,"MQTT_GENERIC_BRIDGE:DEBUG:> eval2 done: $s2");
     if ($@) {
       Log3($mod,2,"MQTT_GENERIC_BRIDGE: evalValue: user value ('".$str."'') eval error: ".$@);
@@ -1448,9 +1431,9 @@ sub searchDeviceForTopic {
   my $hash  = shift // return;
   my $topic = shift // carp q[No topic provided!] && return;
   my $ret = {};
-  my $map = $hash->{+HS_TAB_NAME_DEVICES};
+  my $map = $hash->{+HS_TAB_NAME_DEVICES} // return;
   my $globalMap = $map->{':global'};
-  if(defined ($map)) {
+  #if(defined ($map)) {
     for my $dname (keys %{$map}) {
       my $dmap = $map->{$dname}->{':subscribe'};
       for my $rmap (@{$dmap}) {
@@ -1462,20 +1445,14 @@ sub searchDeviceForTopic {
           # Check named groups: $+{reading},..
           my $reading = undef;
           my $oReading = $rmap->{'reading'};
-          my $nReading = undef;
-          #my $nReading = $+{name}; # TODO ummappen ueber 'alias'
-          # map name
           my $fname = $+{name};
-          if(defined($fname)) {
-            if (defined($map->{$dname}->{':alias'})) {
-              $nReading = $map->{$dname}->{':alias'}->{'sub:'.$fname};
-            }
-            if (!defined($nReading) && defined($globalMap) && defined($globalMap->{':alias'})) {
-              $nReading = $globalMap->{':alias'}->{'sub:'.$fname};
-            }
-            $nReading = $fname if !defined $nReading;
-          }
-          $nReading = $+{reading} if !defined $nReading;
+          
+          my $nReading 
+                = $map->{$dname}->{':alias'}->{'sub:'.$fname}   //
+                  $globalMap->{':alias'}->{'sub:'.$fname}       //
+                  $fname                                        //
+                  $+{reading};
+          
           if( !defined($nReading) || $oReading eq $nReading ) {
             $reading = $oReading;
           }
@@ -1489,17 +1466,17 @@ sub searchDeviceForTopic {
           next if !defined $reading;
           #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] searchDeviceForTopic: match topic: $topic, reading: $reading, nREading: $nReading, oReading: $oReading");
           my $tn = $dname.':'.$reading;
-          $ret->{$tn}->{'mode'}=$rmap->{'mode'};
-          $ret->{$tn}->{'reading'}=$reading;
+          $ret->{$tn}->{'mode'}    = $rmap->{'mode'};
+          $ret->{$tn}->{'reading'} = $reading;
           my $device = $+{device} // $dname; # TODO: Pruefen, ob Device zu verwenden ist => wie?
           #$device = $dname unless defined $device;
-          $ret->{$tn}->{'device'}=$device;
-          $ret->{$tn}->{'expression'}=$rmap->{'expression'};
+          $ret->{$tn}->{'device'}     = $device;
+          $ret->{$tn}->{'expression'} = $rmap->{'expression'};
           #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] searchDeviceForTopic: deliver: ".Dumper($ret));
         }
       }
     }
-  }
+  #}
 
   return $ret;
 }
@@ -1573,20 +1550,21 @@ sub CreateSingleDeviceTableAttrSubscribe { #($$$$) {
           ($ident eq 'qos') or ($ident eq 'retain') or 
           ($ident eq 'expression')) {
           my @nameParts = split m{\|}xms, $name;
-          while (@nameParts) {
-            my $namePart = shift(@nameParts);
-            next if($namePart eq "");
-            my $rmap = $dmap->{$namePart};
-            $rmap = {} unless defined $rmap;
-            $rmap->{'reading'}=$namePart;
+          #while (@nameParts) {
+          #  my $namePart = shift(@nameParts);
+          for my $namePart (@nameParts) {
+            next if($namePart eq '');
+            my $rmap = $dmap->{$namePart} // {};
+            #$rmap = {} unless defined $rmap;
+            $rmap->{'reading'} = $namePart;
             #$rmap->{'wildcardTarget'} = $namePart =~ /^\*/;
             $rmap->{'wildcardTarget'} = $namePart =~ m{\A\*}x;
             #$rmap->{'evalTarget'} = $namePart =~ /^{.+}.*$/;
-            $rmap->{'dev'}=$dev;
-            $rmap->{$ident}=$val;
-            if(($ident eq 'topic') or 
+            $rmap->{'dev'}  = $dev;
+            $rmap->{$ident} = $val;
+            if( $ident eq 'topic' || 
              #($ident eq 'sttopic') or
-              ($ident eq 'stopic') or ($ident eq 'atopic')) { # -> topic
+              $ident eq 'stopic' || $ident eq 'atopic') { # -> topic
 
               $rmap->{'mode'} = 'R';
               #$rmap->{'mode'} = 'T' if $ident eq 'sttopic';
@@ -1615,6 +1593,7 @@ sub CreateSingleDeviceTableAttrSubscribe { #($$$$) {
               $topic = _evalValue2($hash->{NAME},$val,{'device'=>$dev,'reading'=>'#reading','name'=>'#name',%$combined}) if defined $val;
               if(!defined($topic)) {
                 Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE: [$hash->{NAME}] subscribe: error while interpret topic: $val");
+                
               } else {
               my $old = '#reading';
               my $new = '$reading';
@@ -1628,7 +1607,7 @@ sub CreateSingleDeviceTableAttrSubscribe { #($$$$) {
                 #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] sub: Topic new: $topic");
 
               $rmap->{'topicOrig'} = $val;
-              $rmap->{'topicExp'}=createRegexpForTopic($topic);
+              $rmap->{'topicExp'}  = createRegexpForTopic($topic);
 
               $topic =~ s{\$reading}{+}gx;
               $topic =~ s{\$name}{+}gx;
@@ -1685,8 +1664,7 @@ sub CreateSingleDeviceTable { #($$$$$) {
 }
 
 # Geraet-Infos neu einlesen
-sub _RefreshDeviceTable { #($$$$;$$) {
-  #my ($hash, $dev, $devMapName, $prefix, $attrName, $attrVal) = @_;
+sub _RefreshDeviceTable { 
   my $hash       = shift // return;
   my $dev        = shift // carp q[No device name provided!] && return;
   my $devMapName = shift // carp q[No devMapName provided!]  && return;
@@ -1712,8 +1690,7 @@ sub _RefreshDeviceTable { #($$$$;$$) {
 }
 
 # Geraet-Infos neu einlesen
-sub RefreshDeviceTable { #($$;$$) {
-  #my ($hash, $dev, $attrName, $attrVal) = @_;
+sub RefreshDeviceTable { 
   my $hash     = shift // return;
   my $dev      = shift // carp q[No device name provided!] && return;
   my $attrName = shift;
@@ -1732,8 +1709,7 @@ sub RefreshGlobalTableAll {
 }
 
 # GlobalTable-Infos neu einlesen fuer einen bestimmten Attribut
-sub RefreshGlobalTable { #($;$$) {
-  #my ($hash, $attrName, $attrVal) = @_;
+sub RefreshGlobalTable {
   my $hash     = shift // return;
   my $attrName = shift // carp q[No attribute name];
   my $attrVal  = shift // carp q[No attribute value]  && return;
@@ -1744,7 +1720,6 @@ sub RefreshGlobalTable { #($;$$) {
 
 # Geraet umbenennen, wird aufgerufen, wenn ein Geraet in FHEM umbenannt wird
 sub RenameDeviceInTable {
-  #my($hash, $dev, $devNew) = @_;
   my $hash   = shift // return;
   my $dev    = shift // carp q[No device name provided!] && return;
   my $devNew = shift // carp q[No new device name provided!] && return;
@@ -1762,7 +1737,6 @@ sub RenameDeviceInTable {
 
 # Geraet loeschen (geloescht in FHEM)
 sub DeleteDeviceInTable {
-  #my($hash, $dev) = @_;
   my $hash = shift // return;
   my $dev  = shift // carp q[No device name provided!] && return;
   my $map = $hash->{+HS_TAB_NAME_DEVICES};
@@ -1925,8 +1899,7 @@ my %getsDebug = (
 );
 
 # Routine fuer FHEM Get-Commando
-sub Get { #($$$@) {
-  #my ($hash, $name, $command, $args) = @_;
+sub Get { 
   my $hash    = shift // return;
   my $name    = shift;
   my $command = shift // return "Need at least one parameters";
@@ -1960,8 +1933,8 @@ sub Get { #($$$@) {
     $clientIsWeb = 1 if (defined($clType) and ($clType eq 'FHEMWEB'));
   }
 
-  COMMAND_HANDLER: {
-    $command eq "debugInfo" and isDebug($hash) and do {
+  #COMMAND_HANDLER: {
+  if ($command eq "debugInfo" and isDebug($hash)) {
       my $debugInfo = "initialized: ".$hash->{+HELPER}->{+HS_FLAG_INITIALIZED}."\n\n";
       $debugInfo.= "device data records: ".Dumper($hash->{+HS_TAB_NAME_DEVICES})."\n\n";
       $debugInfo.= "subscriptionTab: ".Dumper($hash->{+HS_TAB_NAME_SUBSCRIBE})."\n\n";
@@ -1976,20 +1949,20 @@ sub Get { #($$$@) {
       $debugInfo =~ s{>}{&gt;}gx;
 
       return $debugInfo;
-    };
-    $command eq "version" and do {
+    }
+    
+    if ($command eq "version") {
       return $VERSION;
-    };
-    $command eq "debugReinit" and isDebug($hash) and do {
+    }
+    if ($command eq "debugReinit" and isDebug($hash)) {
       InitializeDevices($hash);
-      last;
+      return;
     };
-    $command eq "debugShowPubRec" and do {
+    if ($command eq "debugShowPubRec") {
       my($dev,$reading) = split m{>}xms, $args;
       return "PubRec: $dev:$reading = ".Dumper(getDevicePublishRec($hash, $dev, $reading));
-      #last;
-    };
-    $command eq "devlist" and do {
+    }
+    if ($command eq "devlist") {
       my $res= q{};
       for my $dname (sort keys %{$hash->{+HS_TAB_NAME_DEVICES}}) {
         if($dname ne ":global") {
@@ -2001,86 +1974,80 @@ sub Get { #($$$@) {
       }
       return "no devices found" if $res eq '';
       return $res;
-    };
-    $command eq "devinfo" and do {
-      my $res="";
-      for my $dname (sort keys %{$hash->{+HS_TAB_NAME_DEVICES}}) {
-        if($dname ne ":global") {
-          if($args) {
-            next unless $dname =~ /^$args$/;
-          }
-          $res.=$dname."\n";
-          $res.="  publish:\n";
-          for my $rname (sort keys %{$hash->{+HS_TAB_NAME_DEVICES}->{$dname}->{':publish'}}) {
-            #my $pubRec = getDevicePublishRec($hash, $dname, $rname);
-            my $pubRecList = getDevicePublishRec($hash, $dname, $rname);
-            if(defined($pubRecList)) {
-              for my $pubRec (@$pubRecList) {
-            if(defined($pubRec)) {
-              my $expression = $pubRec->{'expression'};
-              my $mode =  $pubRec->{'mode'};
-              $mode='E' if(defined($expression) && !defined($mode));
-              my $topic = undef;
-              if($mode eq 'R') {
-                $topic = $pubRec->{'topic'};
-              } elsif($mode eq 'A') {
-                $topic = $pubRec->{'atopic'};
-              } elsif($mode eq 'E') {
-                $topic = '[expression]';
-              } else {
-                $topic = '!unexpected mode!';
-              }
-              $topic = 'undefined' unless defined $topic;
-              my $qos = $pubRec->{'qos'};
-              my $retain = $pubRec->{'retain'};
-                  my $postFix = $pubRec->{'postfix'};
-                  my $dispName = $rname;
-                  if(defined($postFix) and ($postFix ne '')) {$dispName.='!'.$postFix;}
-                  $res.= sprintf('    %-16s => %s',  $dispName, $topic);
-              $res.= " (";
-              $res.= "mode: $mode";
-              $res.= "; qos: $qos";
-              $res.= "; retain" if ($retain ne "0");
-              $res.= ")\n";
-              $res.= "                     exp: $expression\n" if defined ($expression);
-            }
-          }
-            }
-          }
-          $res.="  subscribe:\n";
-          my @resa;
-          for my $subRec (@{$hash->{+HS_TAB_NAME_DEVICES}->{$dname}->{':subscribe'}}) {
-            my $qos = $subRec->{'qos'};
-            my $mode = $subRec->{'mode'};
-            my $expression = $subRec->{'expression'};
-            my $topic = $subRec->{'topic'};
-            $topic = '---' unless defined $topic;
-            my $rest= sprintf('    %-16s <= %s', $subRec->{'reading'}, $topic);
-            $rest.= " (mode: $mode";
-            $rest.= "; qos: $qos" if defined ($qos);
-            $rest.= ")\n";
-            $rest.= "                     exp: $expression\n" if defined ($expression);
-            push (@resa, $rest);
-          }
-          $res.=join('', sort @resa);
-        }
-        $res.= "\n";
-      }
-      # TODO : Weitere Dev Infos?
-      $res = "no devices found" if $res eq '';
-      return $res;
-      #last;
-    };
-    $command eq "refreshUserAttr" and do {
-      refreshUserAttr($hash);
+    }
+    if ($command eq "devinfo") {
+      return getDevInfo($hash,$args);;
+    }
+    if ($command eq "refreshUserAttr") {
+      return refreshUserAttr($hash);
     }
 
-    # $command eq "YYY" and do {
-    #   #  
-    #   last;
-    # };
-  };
   return;
+}
+
+sub getDevInfo {
+  my $hash = shift // return;
+  my $args = shift;
+  my $res = q{};
+  for my $dname (sort keys %{$hash->{+HS_TAB_NAME_DEVICES}}) {
+    if($dname ne ":global") {
+      if($args) {
+        next if $dname !~ m{\A$args\z}x;
+      }
+      $res.=$dname."\n";
+      $res.="  publish:\n";
+      for my $rname (sort keys %{$hash->{+HS_TAB_NAME_DEVICES}->{$dname}->{':publish'}}) {
+        my $pubRecList = getDevicePublishRec($hash, $dname, $rname);
+        next if !defined($pubRecList);
+        for my $pubRec (@$pubRecList) {
+          next if !defined($pubRec);
+          my $expression = $pubRec->{'expression'};
+          my $mode =  $pubRec->{'mode'};
+             $mode='E' if(defined($expression) && !defined($mode));
+          my $topic = 'undefined';
+          if($mode eq 'R') {
+            $topic = $pubRec->{'topic'};
+          } elsif($mode eq 'A') {
+            $topic = $pubRec->{'atopic'};
+          } elsif($mode eq 'E') {
+            $topic = '[expression]';
+          } else {
+            $topic = '!unexpected mode!';
+          }
+          my $qos      = $pubRec->{'qos'};
+          my $retain   = $pubRec->{'retain'};
+          my $postFix  = $pubRec->{'postfix'};
+          my $dispName = $rname;
+          if(defined($postFix) and ($postFix ne '')) {$dispName.='!'.$postFix;}
+          $res.= sprintf('    %-16s => %s',  $dispName, $topic);
+          $res.= " (";
+          $res.= "mode: $mode";
+          $res.= "; qos: $qos";
+          $res.= "; retain" if ($retain ne "0");
+          $res.= ")\n";
+          $res.= "                     exp: $expression\n" if defined ($expression);
+        }
+      }
+      $res.="  subscribe:\n";
+      my @resa;
+      for my $subRec (@{$hash->{+HS_TAB_NAME_DEVICES}->{$dname}->{':subscribe'}}) {
+        my $qos = $subRec->{'qos'};
+        my $mode = $subRec->{'mode'};
+        my $expression = $subRec->{'expression'};
+        my $topic = $subRec->{'topic'} // '---';
+        my $rest= sprintf('    %-16s <= %s', $subRec->{'reading'}, $topic);
+          $rest.= " (mode: $mode";
+          $rest.= "; qos: $qos" if defined ($qos);
+          $rest.= ")\n";
+          $rest.= "                     exp: $expression\n" if defined ($expression);
+        push (@resa, $rest);
+      }
+      $res.=join('', sort @resa);
+    }
+    $res.= "\n";
+  }
+  $res = "no devices found" if $res eq '';
+  return $res;
 }
 
 sub Set {
@@ -2220,13 +2187,17 @@ sub checkPublishDeviceReadingsUpdates {
   for my $event (@{deviceEvents($dev,1)}) {
     #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] Notify for $dev->{NAME} event: $event STATE: $dev->{STATE} ".Dumper($dev));
     #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] Notify for $dev->{NAME} event: $event STATE: $dev->{STATE}");
-    $event =~ /^([^:]+)(:\s)?(.*)$/sm; # Schalter /sm ist wichtig! Sonst wir bei mehrzeiligen Texten Ende nicht korrekt erkannt. s. https://perldoc.perl.org/perlretut.html#Using-regular-expressions-in-Perl 
+    #$event =~ /^([^:]+)(:\s)?(.*)$/sm; # Schalter /sm ...
+    $event =~ m{\A(?<dev>[^:]+)(?<devr>:\s)?(?<devrv>.*)\z}smx; # Schalter /sm ist wichtig! Sonst wir bei mehrzeiligen Texten Ende nicht korrekt erkannt. s. https://perldoc.perl.org/perlretut.html#Using-regular-expressions-in-Perl 
     #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] event: $event, '".((defined $1) ? $1 : "-undef-")."', '".((defined $3) ? $3 : "-undef-")."'") if $dev->{TYPE} ne 'MQTT_GENERIC_BRIDGE';
-    my $devreading = $1;
-    my $devval = $3;
+    #my $devreading = $1;
+    #my $devval = $3;
+    my $devreading = $+{dev};
+    my $devval = $+{devrv};
+
 
     # Sonderlocke fuer 'state' in einigen Faellen: z.B. bei ReadingsProxy kommt in CHANGEDWITHSTATE nichts an, und in CHANGE, wie gehabt, z.B. 'off'
-    if(!$2) {
+    if(!$+{devr}) {
       #$devval = $devreading;
       $devval = $event;
       $devreading = 'state';
@@ -2272,7 +2243,7 @@ sub checkPublishDeviceReadingsUpdates {
 #       bzw. genannte Readings an jedem Geraetetyp ignoriert werden.
 #       Zusaetzlich kann auch die Richtung optional angegeben werden (pub oder sub). Dann gilt die Ausnahme entsprechend nur fuers Senden oder nur fuer Empfang.
 # TEST: {Dumper(MQTT::GENERIC_BRIDGE::defineGlobalTypeExclude($defs{'mqttGenericBridge'},'sub:type:reading pub:*:reading2 sub:*:* test'))}
-sub defineGlobalTypeExclude { #($;$) {
+sub defineGlobalTypeExclude { 
   my $hash = shift // return;
   my $valueType = shift // DEFAULT_GLOBAL_TYPE_EXCLUDES;
   
@@ -2303,9 +2274,9 @@ sub defineGlobalTypeExclude { #($;$) {
     next if($val eq '');
     my($dir, $type, $reading) = split m{:}xms, $val;
     if (!defined $reading && $dir ne 'pub' && $dir ne 'sub') {
-      $reading=$type;
-      $type=$dir;
-      $dir=undef;
+      $reading = $type;
+      $type    = $dir;
+      $dir     = undef;
     }
     next if($type eq '');
     $reading = '*' if !defined $reading;
@@ -2336,7 +2307,7 @@ sub defineGlobalTypeExclude { #($;$) {
 #       Ein Stern anstatt des Geraetenamens ist nicht erlaubt (benutzen Sie in diesem Fall GlobalTypeExclude).
 #       Zusaetzlich kann auch die Richtung optional angegeben werden (pub oder sub). Dann gilt die Ausnahme entsprechend nur fuers Senden oder nur fuer Empfang.
 # TEST {Dumper(MQTT::GENERIC_BRIDGE::defineGlobalDevExclude($defs{'mqttGenericBridge'},'sub:dev1:reading1 dev2:reading2 dev3 pub:a: *:* test'))}
-sub defineGlobalDevExclude { #($;$) {
+sub defineGlobalDevExclude { 
   my $hash = shift // return;
   my $valueName = shift // DEFAULT_GLOBAL_DEV_EXCLUDES;
   $valueName = DEFAULT_GLOBAL_DEV_EXCLUDES unless defined $valueName;
@@ -2394,8 +2365,7 @@ sub defineDefaultGlobalExclude {
 #     $type:    Geraetetyp
 #     $devName: Geraetename
 #     $reading: Reading
-sub isTypeDevReadingExcluded { #($$$$$) {
-  #my ($hash, $direction, $type, $devName, $reading) = @_;
+sub isTypeDevReadingExcluded { 
   my $hash      = shift // return;
   my $direction = shift // carp q[No direction provided!]   && return;
   my $type      = shift // carp q[No device type provided!] && return;
@@ -2524,14 +2494,19 @@ sub doPublish { #($$$$$$$$) {
 
   Log3($hash->{NAME},5,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] publish: $topic => $message (qos: $qos, retain: $retain");
 
-  if (isIODevMQTT2($hash)){ #if ($hash->{+HELPER}->{+IO_DEV_TYPE} eq 'MQTT2_SERVER') {
+  if (isIODevMQTT2($hash)){ 
     # TODO: publish MQTT2
     # TODO qos / retain ? 
     $topic.=':r' if $retain;
     IOWrite($hash, "publish", $topic.' '.$message);
-    readingsSingleUpdate($hash,"transmission-state","outgoing publish sent",1);
+    
     $hash->{+HELPER}->{+HS_PROP_NAME_OUTGOING_CNT}++;
-    readingsSingleUpdate($hash,"outgoing-count",$hash->{+HELPER}->{+HS_PROP_NAME_OUTGOING_CNT},1);
+    readingsBeginUpdate($hash);
+    readingsBulkUpdate($hash,'transmission-state','outgoing publish sent');
+    #readingsSingleUpdate($hash,"transmission-state","outgoing publish sent",1);
+    readingsBulkUpdate($hash,'outgoing-count',$hash->{+HELPER}->{+HS_PROP_NAME_OUTGOING_CNT});
+    #readingsSingleUpdate($hash,"outgoing-count",$hash->{+HELPER}->{+HS_PROP_NAME_OUTGOING_CNT},1);
+    readingsEndUpdate($hash,1);
     return;
   } elsif (isIODevMQTT($hash)) { #elsif ($hash->{+HELPER}->{+IO_DEV_TYPE} eq 'MQTT') {
     #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] doPublish for $device, $reading, topic: $topic, message: $message");
@@ -2539,9 +2514,15 @@ sub doPublish { #($$$$$$$$) {
     if(defined($topic) and defined($message)) {
       #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] send_publish: topic: $topic, message: $message");
       $msgid = send_publish($hash->{IODev}, topic => $topic, message => $message, qos => $qos, retain => $retain);
-      readingsSingleUpdate($hash,"transmission-state","outgoing publish sent",1);
+      
       $hash->{+HELPER}->{+HS_PROP_NAME_OUTGOING_CNT}++;
-      readingsSingleUpdate($hash,"outgoing-count",$hash->{+HELPER}->{+HS_PROP_NAME_OUTGOING_CNT},1);
+      readingsBeginUpdate($hash);
+      readingsBulkUpdate($hash,'transmission-state','outgoing publish sent');
+      readingsBulkUpdate($hash,'outgoing-count',$hash->{+HELPER}->{+HS_PROP_NAME_OUTGOING_CNT});
+      readingsEndUpdate($hash,1);
+    
+      #readingsSingleUpdate($hash,"transmission-state","outgoing publish sent",1);
+      #readingsSingleUpdate($hash,"outgoing-count",$hash->{+HELPER}->{+HS_PROP_NAME_OUTGOING_CNT},1);
       #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] publish: $topic => $message");
       return;
     }
@@ -2625,7 +2606,7 @@ sub publishDeviceUpdate { #($$$$$) {
       # Rueckgabewert wird ignoriert, falls dieser ein Array ist. 
       # Bei einem Hash werden Paare als Topic-Message Paare verwendet und mehrere Nachrichten gesendet
       no strict "refs";
-      local $@;
+      local $@ = undef;
       # $device, $reading, $name (und fuer alle Faelle $topic) in $defMap packen, so zur Verfügung stellen (für eval)reicht wegen _evalValue2 wohl nicht
       my $name = $reading; # TODO: Name-Mapping
       my $device = $devn;
@@ -2639,15 +2620,16 @@ sub publishDeviceUpdate { #($$$$$) {
           #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> DEBUG: >>> expression: $expression : ".Dumper($defMap));
           my $ret = _evalValue2($hash->{NAME},$expression,{'topic'=>$topic,'device'=>$devn,'reading'=>$reading,'name'=>$name,'time'=>TimeNow(),%$defMap},1);
       #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> DEBUG: <<< expression: ".Dumper($ret));
-      $ret = eval($ret);
+      $ret = eval($ret); ##no critic qw(eval) 
+      # we expressively want user code to be executed! This is added after compile time...
           #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> DEBUG: <<< eval expression: ".Dumper($ret));
       if(ref($ret) eq 'HASH') {
         $redefMap = $ret;
       } elsif(ref($ret) eq 'ARRAY') {
         # ignore
-      } elsif(!defined($ret)) {
-        $message = undef;
-      } elsif($value ne $message) {
+      #} elsif(!defined($ret)) {
+      #  $message = undef;
+      } elsif($value ne $message && defined($ret)) {
         $message = $value;
       } else {
         $message = $ret;
@@ -2813,24 +2795,25 @@ sub doSetUpdate { #($$$$$) {
   my $dhash = $defs{$device} // carp qq[No device hash for $device registered!]  && return;
   #return unless defined $dhash;
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE: [$hash->{NAME}] setUpdate enter: update: $reading = $message");
-  my $doForward = isDoForward($hash, $device,$reading);
+  #my $doForward = isDoForward($hash, $device,$reading); 
+  my $doForward = isDoForward($hash, $device); #code seems only to support on device level!
 
   if($mode eq 'S') {
     my $err;
     my @args = split ("[ \t]+",$message);
     #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] mqttGenericBridge_triggeredReading=".Dumper($dhash->{'.mqttGenericBridge_triggeredReading'}));
     if(($reading eq '') or ($reading eq 'state')) {
-      $dhash->{'.mqttGenericBridge_triggeredReading'}="state" unless $doForward;
-      $dhash->{'.mqttGenericBridge_triggeredReading_val'}=$message unless $doForward;
+      $dhash->{'.mqttGenericBridge_triggeredReading'}="state" if !$doForward;
+      $dhash->{'.mqttGenericBridge_triggeredReading_val'}=$message if !$doForward;
       #$err = DoSet($device,$message);
       $err = DoSet($device,@args);
     } else {
-      $dhash->{'.mqttGenericBridge_triggeredReading'}=$reading unless $doForward;
-      $dhash->{'.mqttGenericBridge_triggeredReading_val'}=$message unless $doForward;
+      $dhash->{'.mqttGenericBridge_triggeredReading'}=$reading if !$doForward;
+      $dhash->{'.mqttGenericBridge_triggeredReading_val'}=$message if !$doForward;
       #$err = DoSet($device,$reading,$message);
       $err = DoSet($device,$reading,@args);
     }
-    unless (defined($err)) {
+    if (!defined($err)) {
       $hash->{+HELPER}->{+HS_PROP_NAME_UPDATE_S_CNT}++; 
       readingsSingleUpdate($hash,"updated-set-count",$hash->{+HELPER}->{+HS_PROP_NAME_UPDATE_S_CNT},1);
       return;
@@ -2944,14 +2927,12 @@ sub onmessage {
         my $mode = $fMap->{$deviceKey}->{'mode'};
         my $expression = $fMap->{$deviceKey}->{'expression'};
 
-        next if !defined $device;
-        next if !defined $reading;
+        next if !defined $device || !defined $reading;
 
         my $dhash = $defs{$device};
-        next if !defined $dhash;
-        next if(isTypeDevReadingExcluded($hash, 'sub', $dhash->{TYPE}, $device, $reading));
+        next if !defined $dhash || isTypeDevReadingExcluded($hash, 'sub', $dhash->{TYPE}, $device, $reading);
 
-        my $redefMap=undef;
+        my $redefMap = undef;
 
         if(defined $expression) {
           # Expression: Verfuegbare Variablen: $device, $reading, $message (initial gleich $value)
@@ -2960,18 +2941,19 @@ sub onmessage {
           # Rueckgabewert wird ignoriert, falls dieser ein Array ist. 
           # Bei einem Hash werden Paare als Reading-Wert Paare gesetzt (auch set (stopic), attr (atopic))
           no strict "refs";
-          local $@;
+          local $@ = undef;
           #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] eval ($expression) !!!");
           my $value = $message;
-          my $ret = eval($expression);
+          my $ret = eval($expression); ##no critic qw(eval) 
+          # we expressively want user code to be executed! This is added after compile time...
           if(ref($ret) eq 'HASH') {
             $redefMap = $ret;
           } elsif(ref($ret) eq 'ARRAY') {
             # ignore
           } elsif($value ne $message) {
             $message = $value;
-          } elsif(!defined($ret)) {
-            $message = undef;
+          #} elsif(!defined($ret)) { #Beta-User: same as next assignement..?
+          #  $message = undef;
           } else {
             $message = $ret;
           }
@@ -2979,7 +2961,7 @@ sub onmessage {
           if ($@) {
             Log3($hash->{NAME},2,"MQTT_GENERIC_BRIDGE: [$hash->{NAME}] onmessage: error while evaluating expression ('".$expression."'') eval error: ".$@);
           }
-          use strict "refs";
+          #use strict "refs"; # this is automatically done in lexical scope
         }
 
         #next unless defined $device;
