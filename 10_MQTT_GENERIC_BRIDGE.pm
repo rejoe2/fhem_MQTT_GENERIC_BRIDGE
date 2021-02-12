@@ -2220,7 +2220,15 @@ sub checkPublishDeviceReadingsUpdates {
 
   # nicht, wenn deaktivert
   return '' if(::IsDisabled($hash->{NAME}));
-
+  
+  #are we at the end of a bulk update?
+  if ($dev->{'.mqttGenericBridge_triggeredBulk'}) {
+    delete $dev->{'.mqttGenericBridge_triggeredReading'};
+    delete $dev->{'.mqttGenericBridge_triggeredReading_val'};  
+    delete $dev->{'.mqttGenericBridge_triggeredBulk'};  
+    return;  
+  }
+  
   #CheckInitialization($hash);
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] checkPublishDeviceReadingsUpdates ------------------------ ");
   #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE:DEBUG:> [$hash->{NAME}] checkPublishDeviceReadingsUpdates: ".$dev->{NAME}." : ".Dumper(@{$dev->{CHANGED}}))  if $dev->{TYPE} ne 'MQTT_GENERIC_BRIDGE';
@@ -2382,11 +2390,11 @@ sub defineGlobalDevExclude { #($;$) {
   my($unnamed, $named) = main::parseParams($valueName,'\s',' ','=');
   for my $val (@$unnamed) {
     next if($val eq '');
-    my($dir, $dev, $reading) = split(/:/, $val);
-    if ((!defined $reading) and ($dir ne 'pub') and ($dir ne 'sub')) {
-      $reading=$dev;
-      $dev=$dir;
-      $dir=undef;
+    my($dir, $dev, $reading) = split m{:}xms , $val;
+    if (!defined $reading && $dir ne 'pub' && $dir ne 'sub') {
+      $reading = $dev;
+      $dev     = $dir;
+      $dir     = undef;
     }
     next if($dev eq '');
     $reading = '*' if !defined $reading;
@@ -2831,6 +2839,7 @@ sub doSetUpdate { #($$$$$) {
   my $device  = shift // carp q[No device provided!]  && return;
   my $reading = shift // carp q[No reading provided!] && return;
   my $message = shift; # // carp q[No message content!]  && return;
+  my $isBulk  = shift // 0;
 
   my $dhash = $defs{$device} // carp qq[No device hash for $device registered!]  && return;
   #return unless defined $dhash;
@@ -2862,13 +2871,14 @@ sub doSetUpdate { #($$$$$) {
   } elsif($mode eq 'R') { # or $mode eq 'T') {
     # R - Normale Topic (beim Empfang nicht weiter publishen)
     # T - Selt-Trigger-Topic (Sonderfall, auch wenn gerade empfangen, kann weiter getriggert/gepublisht werden. Vorsicht! Gefahr von 'Loops'!)
-    readingsBeginUpdate($dhash);
-    if ($mode eq 'R') {
-      $dhash->{'.mqttGenericBridge_triggeredReading'}=$reading unless $doForward;
-      $dhash->{'.mqttGenericBridge_triggeredReading_val'}=$message unless $doForward;
+    readingsBeginUpdate($dhash) if !$isBulk;
+    if ($mode eq 'R' && !$doForward) {
+      $dhash->{'.mqttGenericBridge_triggeredReading'}     = $reading;
+      $dhash->{'.mqttGenericBridge_triggeredReading_val'} = $message;
+      $dhash->{'.mqttGenericBridge_triggeredBulk'}        = 1 if $isBulk;
     }
     readingsBulkUpdate($dhash,$reading,$message);
-    readingsEndUpdate($dhash,1);
+    readingsEndUpdate($dhash,1) if !$isBulk;
     #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE: [$hash->{NAME}] setUpdate: update: $reading = $message");
     # wird in 'notify' entfernt # delete $dhash->{'.mqttGenericBridge_triggeredReading'};
 
@@ -2903,7 +2913,7 @@ sub Parse {
   }
 
   #my ($cid, $topic, $value) = split(":", $msg, 3);
-  my ($cid, $topic, $value) = split("\0", $msg, 3);
+  my ($cid, $topic, $value) = split m{\0}xms, $msg, 3;
   
   my @instances = devspec2array("TYPE=MQTT_GENERIC_BRIDGE");
   my @ret=();
@@ -2913,9 +2923,9 @@ sub Parse {
     # Name mit IODev vegleichen
     my $iiodn = retrieveIODevName($hash);
     #Log3($hash->{NAME},1,"MQTT_GENERIC_BRIDGE: [$hash->{NAME}] Parse: test IODev: $iiodn vs. $ioname");
-    next unless $ioname eq $iiodn;
+    next if $ioname ne $iiodn;
     my $iiodt = retrieveIODevType($hash);
-    next unless checkIODevMQTT2($iiodt);
+    next if !checkIODevMQTT2($iiodt);
     #next unless isIODevMQTT2($hash);
 
     Log3($hash->{NAME},5,"MQTT_GENERIC_BRIDGE: [$hash->{NAME}] Parse ($iiodt : '$ioname'): Msg: $topic => $value");
@@ -2925,7 +2935,7 @@ sub Parse {
     # unshift(@ret, "[NEXT]"); # damit weitere Geraetemodule ggf. aufgerufen werden
     # return @ret;
     my $fret = onmessage($hash, $topic, $value);
-    next unless defined $fret;
+    next if !defined $fret;
     if( ref($fret) eq 'ARRAY' ) {
       push (@ret, @{$fret});
       $forceNext = 1 if AttrVal($hash->{NAME},'forceNEXT',0);
@@ -3006,16 +3016,18 @@ sub onmessage {
         #next unless defined $device;
         #next unless defined $reading;
 
-        next unless defined $message;
+        next if !defined $message;
 
         if(defined($redefMap)) {
           for my $key (keys %{$redefMap}) {
             my $val = $redefMap->{$key};
-            my $r = doSetUpdate($hash,$mode,$device,$key,$val);
+            readingsBeginUpdate($defs{$device});
+            my $r = doSetUpdate($hash,$mode,$device,$key,$val,1);
             unless (defined($r)) {
-              $updated = 1;
+              $updated = 1 if !$updated;
               push(@updatedList, $device);
             }
+            readingsEndUpdate($defs{$device},1);
           }
         } else {
           my $r = doSetUpdate($hash,$mode,$device,$reading,$message);
