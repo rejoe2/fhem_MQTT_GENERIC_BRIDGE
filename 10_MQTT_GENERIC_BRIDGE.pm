@@ -1291,86 +1291,39 @@ sub getDevicePublishRecIntern { #($$$$$$$) {
 }
 
 # sucht Qos, Retain, Expression Werte unter Beruecksichtigung von Defaults und Globals
-sub retrieveQosRetainExpression { #($$$$$$) {
+sub retrieveQosRetainExpression { 
   my $globalDefaultReadingMap   = shift;
   my $globalReadingMap          = shift;
   my $wildcardDefaultReadingMap = shift;
   my $wildcardReadingMap        = shift;
   my $defaultReadingMap         = shift;
   my $readingMap                = shift; # none of the args seems to be mandatory...
-  my $qos        = undef;
-  my $retain     = undef;
-  my $expression = undef;
-
-  # Log3('GB',1,"MQTT_GENERIC_BRIDGE: retrieveQosRetainExpression: globalDefaultReadingMap: ".Dumper($globalDefaultReadingMap));
-  # Log3('GB',1,"MQTT_GENERIC_BRIDGE: retrieveQosRetainExpression: globalReadingMap: ".Dumper($globalReadingMap));
-  # Log3('GB',1,"MQTT_GENERIC_BRIDGE: retrieveQosRetainExpression: defaultReadingMap: ".Dumper($defaultReadingMap));
-  # Log3('GB',1,"MQTT_GENERIC_BRIDGE: retrieveQosRetainExpression: readingMap: ".Dumper($readingMap));
-
-  if(defined $readingMap) {
-    $qos =          $readingMap->{'qos'};
-    $retain =       $readingMap->{'retain'};
-    $expression =   $readingMap->{'expression'};
-    # if(defined($readingMap->{':defaults'})) {
-    #   $qos =        $readingMap->{':defaults'}->{'pub:qos'} unless defined $qos;
-    #   $retain =     $readingMap->{':defaults'}->{'pub:retain'} unless defined $retain;
-    #   $expression = $readingMap->{':defaults'}->{'expression'} unless defined $expression;
-    # }
-  }
-
-  if(defined $wildcardReadingMap) {
-    $qos =          $wildcardReadingMap->{'qos'} unless defined $qos;
-    $retain =       $wildcardReadingMap->{'retain'} unless defined $retain;
-    $expression =   $wildcardReadingMap->{'expression'} unless defined $expression;
-  }
-
-  if(defined $defaultReadingMap) {
-    $qos =          $defaultReadingMap->{'pub:qos'} unless defined $qos;
-    $retain =       $defaultReadingMap->{'pub:retain'} unless defined $retain;
-    $expression =   $defaultReadingMap->{'pub:expression'} unless defined $expression;
-    $qos =          $defaultReadingMap->{'qos'} unless defined $qos;
-    $retain =       $defaultReadingMap->{'retain'} unless defined $retain;
-    $expression =   $defaultReadingMap->{'expression'} unless defined $expression;
-    # if(defined($defaultReadingMap->{':defaults'})) {
-    #   $qos =        $defaultReadingMap->{':defaults'}->{'pub:qos'} unless defined $qos;
-    #   $retain =     $defaultReadingMap->{':defaults'}->{'pub:retain'} unless defined $retain;
-    #   $expression = $defaultReadingMap->{':defaults'}->{'expression'} unless defined $expression;
-    # }
-  }
-
-  if(defined $globalReadingMap) {
-    $qos =          $globalReadingMap->{'qos'} unless defined $qos; # warum stand hier nicht unless defined?
-    $retain =       $globalReadingMap->{'retain'} unless defined $retain; # s.o.?
-    $expression =   $globalReadingMap->{'expression'} unless defined $expression;
-    # if(defined($globalReadingMap->{':defaults'})) {
-    #   $qos =        $globalReadingMap->{':defaults'}->{'pub:qos'} unless defined $qos;
-    #   $retain =     $globalReadingMap->{':defaults'}->{'pub:retain'} unless defined $retain;
-    #   $expression = $globalReadingMap->{':defaults'}->{'expression'} unless defined $expression;
-    # }
-  }
+  my $qos        = $readingMap->{'qos'}                         //
+                   $wildcardReadingMap->{'qos'}                 //
+                   $defaultReadingMap->{'pub:qos'}              //
+                   $defaultReadingMap->{'qos'}                  //
+                   $globalReadingMap->{'qos'}                   //
+                   $wildcardDefaultReadingMap->{'qos'}          //
+                   $globalDefaultReadingMap->{'pub:qos'}        //
+                   $globalDefaultReadingMap->{'qos'}            // 0;
   
-  if(defined $wildcardDefaultReadingMap) {
-    $qos =          $wildcardDefaultReadingMap->{'qos'} unless defined $qos;
-    $retain =       $wildcardDefaultReadingMap->{'retain'} unless defined $retain;
-    $expression =   $wildcardDefaultReadingMap->{'expression'} unless defined $expression;
-  }
-  
-  if(defined $globalDefaultReadingMap) {
-    $qos =          $globalDefaultReadingMap->{'pub:qos'} unless defined $qos;
-    $retain =       $globalDefaultReadingMap->{'pub:retain'} unless defined $retain;
-    $expression =   $globalDefaultReadingMap->{'pub:expression'} unless defined $expression;
-    $qos =          $globalDefaultReadingMap->{'qos'} unless defined $qos;
-    $retain =       $globalDefaultReadingMap->{'retain'} unless defined $retain;
-    $expression =   $globalDefaultReadingMap->{'expression'} unless defined $expression;
-    # if(defined($globalDefaultReadingMap->{':defaults'})) {
-    #   $qos =        $globalDefaultReadingMap->{':defaults'}->{'pub:qos'} unless defined $qos;
-    #   $retain =     $globalDefaultReadingMap->{':defaults'}->{'pub:retain'} unless defined $retain;
-    #   $expression = $globalDefaultReadingMap->{':defaults'}->{'expression'} unless defined $expression;
-    # }
-  }
+  my $retain     = $readingMap->{'retain'}                      //
+                   $wildcardReadingMap->{'retain'}              //
+                   $defaultReadingMap->{'pub:retain'}           //
+                   $defaultReadingMap->{'retain'}               //
+                   $globalReadingMap->{'retain'}                //
+                   $wildcardDefaultReadingMap->{'retain'}       //
+                   $globalDefaultReadingMap->{'pub:retain'}     //
+                   $globalDefaultReadingMap->{'retain'}         // 0;
 
-  $qos = 0 unless defined $qos;
-  $retain = 0 unless defined $retain;
+  my $expression = $readingMap->{'expression'}                  //
+                   $wildcardReadingMap->{'expression'}          //
+                   $defaultReadingMap->{'pub:expression'}       //
+                   $defaultReadingMap->{'expression'}           //
+                   $globalReadingMap->{'expression'}            //
+                   $wildcardDefaultReadingMap->{'expression'}   //
+                   $globalDefaultReadingMap->{'pub:expression'} //
+                   $globalDefaultReadingMap->{'expression'}     // undef;
 
   return ($qos, $retain, $expression);
 }
