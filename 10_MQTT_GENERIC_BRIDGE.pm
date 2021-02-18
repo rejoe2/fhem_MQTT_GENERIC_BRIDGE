@@ -1243,7 +1243,9 @@ sub getDevicePublishRecIntern { #($$$$$$$) {
 
   # resendOnConnect Option
   my $resendOnConnect = $readingMap->{'resendOnConnect'}                //
-                        $wildcardReadingMap->{'resendOnConnect'}        // $globalReadingMap->{'resendOnConnect'}          //$globalWildcardReadingsMap->{'resendOnConnect'} // undef;
+                        $wildcardReadingMap->{'resendOnConnect'}        //
+                        $globalReadingMap->{'resendOnConnect'}          //
+                        $globalWildcardReadingsMap->{'resendOnConnect'} // undef;
 
   # map name
   my $name = $devMap->{':alias'}->{'pub:'.$readingKey}      //
@@ -1444,12 +1446,18 @@ sub searchDeviceForTopic {
           my $reading = undef;
           my $oReading = $rmap->{'reading'};
           my $fname = $+{name};
+          my $nReading;
           
-          my $nReading 
-                = $map->{$dname}->{':alias'}->{'sub:'.$fname}   //
-                  $globalMap->{':alias'}->{'sub:'.$fname}       //
-                  $fname                                        //
-                  $+{reading};
+          if(defined($fname)) {
+            if (defined($map->{$dname}->{':alias'})) {
+              $nReading = $map->{$dname}->{':alias'}->{'sub:'.$fname};
+            }
+            if (!defined($nReading) && defined($globalMap) && defined($globalMap->{':alias'})) {
+              $nReading = $globalMap->{':alias'}->{'sub:'.$fname};
+            }
+            $nReading = $fname if !defined $nReading;
+          }
+          $nReading = $+{reading} if !defined $nReading;
           
           if( !defined($nReading) || $oReading eq $nReading ) {
             $reading = $oReading;
@@ -3178,7 +3186,7 @@ __END__
             </ul>
             <br/>
             All these values can be limited by prefixes ('pub:' or 'sub') in their validity 
-            to only send or receive only (as far asappropriate). 
+            to only send or receive only (as far as appropriate). 
             Values for 'qos' and 'retain' are only used if no explicit information has been given about it for a specific topic.</p>
             <p>Example:<br/>
                 <code>attr &lt;dev&gt; mqttDefaults base={"TEST/$device"} pub:qos=0 sub:qos=2 retain=0</code></p>
